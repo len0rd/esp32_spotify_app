@@ -9,3 +9,7 @@ dependencies:
   lvgl/lvgl:
     version: 8.4.0
     public: true
+
+  johboh/nlohmann-json:
+    version: ^3.12.0
+    public: true

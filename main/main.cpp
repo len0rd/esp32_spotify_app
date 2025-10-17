@@ -24,11 +24,13 @@
 #include "ParamMgr.h"
 #include "ConsoleCommands.h"
 #include "wifi.h"
+#include <Spotify.hpp>
 
 static const char* TAG = "main";
 
 extern "C" void app_main(void)
 {
+    Spotify::getInstance();
     ConsoleCommandsInit();
     espwifi_Init();
     ESP_LOGI(TAG, "Starting Spotify App\n");
@@ -37,6 +39,13 @@ extern "C" void app_main(void)
     ui_init();
 
     params::ParamMgr::getInstance().listAll();
+
+    // wait for wifi to connect
+    while (!is_wifi_connected())
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+    Spotify::getInstance().updateCurrentlyPlaying();
 
     while (1)
         vTaskSuspend(NULL);
