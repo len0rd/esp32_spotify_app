@@ -38,6 +38,7 @@ json SpotifyClient::get(const std::string& api_path)
                 ESP_LOGI(TAG, "Access token expired, refreshing token...");
                 if (refreshToken())
                 {
+                    ret.clear();
                     ESP_LOGI(TAG, "Token refreshed, retrying GET request...");
                     ret = httpClient.get(BASE_URL + api_path, "Authorization",
                                          "Bearer " + getToken());
@@ -79,6 +80,7 @@ json SpotifyClient::post(const std::string& api_path, std::string body, bool ign
                 ESP_LOGI(TAG, "Access token expired, refreshing token...");
                 if (refreshToken())
                 {
+                    ret.clear();
                     ESP_LOGI(TAG, "Token refreshed, retrying POST request...");
                     ret = httpClient.post(BASE_URL + api_path, "Authorization",
                                           "Bearer " + getToken(), body);
@@ -120,6 +122,7 @@ json SpotifyClient::put(const std::string& api_path, std::string body, bool igno
                 ESP_LOGI(TAG, "Access token expired, refreshing token...");
                 if (refreshToken())
                 {
+                    ret.clear();
                     ESP_LOGI(TAG, "Token refreshed, retrying PUT request...");
                     ret = httpClient.put(BASE_URL + api_path, "Authorization",
                                          "Bearer " + getToken(), body);

@@ -76,10 +76,16 @@ public:
         int getProgress_ms();
 
         /**
+         * @brief Get current playback progress accounting for elapsed time
+         * @return Current progress in milliseconds
+         */
+        int getRemaining_ms();
+
+        /**
          * @brief Get current playback progress as percentage
          * @return Progress as percentage (0-100)
          */
-        int getProgress_percent();
+        float getProgress_percent();
 
         /**
          * @brief Convert currently playing info to string representation
@@ -213,7 +219,7 @@ public:
      * @brief Update the playback state information
      * @return true if successful, false otherwise
      */
-    bool getPlaybackState();
+    bool updatePlaybackState();
 
     /**
      * @brief Refresh the Spotify API access token
@@ -235,6 +241,17 @@ public:
      */
     void setLogLevel(esp_log_level_t level);
 
+    PlaybackState& getPlaybackState()
+    {
+        return m_playbackState;
+    }
+    CurrentlyPlayingInfo& getCurrentlyPlayingInfo()
+    {
+        return m_currentlyPlayingInfo;
+    }
+
+    void start_task();
+
 private:
     const char*    TAG = "Spotify"; ///< Log tag for ESP-IDF logging
     SpotifyClient& m_spotifyClient =
@@ -255,6 +272,9 @@ private:
 
     friend int spotify_cmd(int    argc,
                            char** argv); ///< Allow console command access to private members
+
+    void         task();
+    TaskHandle_t m_task = NULL;
 };
 
 #endif // __SPOTIFY_HPP__

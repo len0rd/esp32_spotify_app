@@ -1,6 +1,9 @@
 #include <Spotify.hpp>
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <wifi.h>
 
 void spotify_cmd_init();
 
@@ -10,6 +13,20 @@ Spotify::Spotify()
     spotify_cmd_init();
 }
 Spotify::~Spotify() {}
+void Spotify::start_task()
+{
+    xTaskCreate([](void* obj) { static_cast<Spotify*>(obj)->task(); }, "spotifyTask", 10 * 1024,
+                this, 5, &m_task);
+}
+void Spotify::task()
+{
+    while (1)
+    {
+        updateCurrentlyPlaying();
+        updatePlaybackState();
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+}
 int Spotify::CurrentlyPlayingInfo::getProgress_ms()
 {
     if (!Spotify::getInstance().isPlaying())
@@ -25,13 +42,17 @@ int Spotify::CurrentlyPlayingInfo::getProgress_ms()
     }
     return current_progress_ms;
 }
-int Spotify::CurrentlyPlayingInfo::getProgress_percent()
+int Spotify::CurrentlyPlayingInfo::getRemaining_ms()
+{
+    return currentTrack.duration_ms - getProgress_ms();
+}
+float Spotify::CurrentlyPlayingInfo::getProgress_percent()
 {
     if (currentTrack.duration_ms == 0)
     {
         return 0;
     }
-    return (getProgress_ms() * 100) / currentTrack.duration_ms;
+    return (float) (getProgress_ms()) / (float) currentTrack.duration_ms;
 }
 bool Spotify::isPlaying()
 {
@@ -53,21 +74,35 @@ bool Spotify::pause()
     {
         m_playbackState.is_playing = false;
     }
-    getPlaybackState();
+    updatePlaybackState();
     return ret;
 }
 bool Spotify::next()
 {
-    return m_spotifyClient.post("me/player/next").contains("error") == false;
+    bool ret = m_spotifyClient.post("me/player/next", "", false).contains("error") == false;
+    updateCurrentlyPlaying();
+    return ret;
 }
 bool Spotify::previous()
 {
-    return m_spotifyClient.post("me/player/previous").contains("error") == false;
+    bool ret = m_spotifyClient.post("me/player/previous", "", false).contains("error") == false;
+    updateCurrentlyPlaying();
+    return ret;
 }
 bool Spotify::setVolume(int volume)
 {
-    json body = {{"volume_percent", volume}};
-    return m_spotifyClient.put("me/player/volume", body).contains("error") == false;
+    // json body = {"volume_percent", volume};
+    if (!m_playbackState.supports_volume)
+    {
+        ESP_LOGW(TAG, "%s does not support volume adjustment", m_playbackState.device_name.c_str());
+        return false;
+    }
+
+    bool ret =
+        m_spotifyClient.put("me/player/volume?volume_percent=" + std::to_string(volume), "", false)
+            .contains("error") == false;
+    getPlaybackState();
+    return ret;
 }
 bool Spotify::updateCurrentlyPlaying()
 {
@@ -146,10 +181,10 @@ bool Spotify::play()
         m_playbackState.is_playing = true;
     }
     updateCurrentlyPlaying();
-    getPlaybackState();
+    updatePlaybackState();
     return ret;
 }
-bool Spotify::getPlaybackState()
+bool Spotify::updatePlaybackState()
 {
     json response = m_spotifyClient.get("me/player");
 
@@ -180,16 +215,6 @@ bool Spotify::getPlaybackState()
     {
         m_playbackState.repeat_state = response["repeat_state"];
     }
-    // m_playbackState.volume_percent
-    if (response.contains("volume_percent"))
-    {
-        m_playbackState.volume_percent = response["volume_percent"];
-    }
-    // m_playbackState.supports_volume
-    if (response.contains("supports_volume"))
-    {
-        m_playbackState.supports_volume = response["supports_volume"];
-    }
     if (response.contains("device"))
     {
         // m_playbackState.device_name
@@ -202,6 +227,16 @@ bool Spotify::getPlaybackState()
         {
             m_playbackState.device_id = response["device"]["id"];
         }
+        // m_playbackState.volume_percent
+        if (response["device"].contains("volume_percent"))
+        {
+            m_playbackState.volume_percent = response["device"]["volume_percent"];
+        }
+        // m_playbackState.supports_volume
+        if (response["device"].contains("supports_volume"))
+        {
+            m_playbackState.supports_volume = response["device"]["supports_volume"];
+        }
     }
     return true;
 }
@@ -209,10 +244,11 @@ bool Spotify::toggleShuffle()
 {
     if (m_spotifyClient
             .put("me/player/shuffle?state=" +
-                 std::string(m_playbackState.shuffle_state ? "false" : "true"))
+                     std::string(m_playbackState.shuffle_state ? "false" : "true"),
+                 "", false)
             .contains("error"))
         return false;
-    return getPlaybackState();
+    return updatePlaybackState();
 }
 bool Spotify::setRepeatMode(const std::string& mode)
 {
@@ -221,9 +257,9 @@ bool Spotify::setRepeatMode(const std::string& mode)
         ESP_LOGE(TAG, "Invalid repeat mode: %s", mode.c_str());
         return false;
     }
-    if (m_spotifyClient.put("me/player/rpeat?state=" + mode).contains("error"))
+    if (m_spotifyClient.put("me/player/repeat?state=" + mode, "", false).contains("error"))
         return false;
-    return getPlaybackState();
+    return updatePlaybackState();
 }
 bool Spotify::addToQueue(const TrackInfo&)
 {
@@ -245,12 +281,13 @@ std::string Spotify::CurrentlyPlayingInfo::toString()
 {
     return "Currently Playing: " + currentTrack.toString() + ", Context: " + context_uri +
            ", Progress: " + std::to_string(getProgress_ms()) + " ms (" +
-           std::to_string(getProgress_percent()) + "%)";
+           std::to_string(100 * getProgress_percent()) + "%)";
 }
 std::string Spotify::PlaybackState::toString()
 {
     return "Playback State - Playing: " + std::to_string(is_playing) +
            ", Volume: " + std::to_string(volume_percent) + "%" +
+           ", Supports_Volume: " + std::to_string(supports_volume) +
            ", Shuffle: " + std::to_string(shuffle_state) + ", Repeat: " + repeat_state +
            ", Device: " + device_name;
 }
@@ -297,22 +334,6 @@ void spotify_cmd_init()
 }
 int spotify_cmd(int argc, char** argv)
 {
-    // isPlaying();
-    // getCurrentTrack();
-    // getTrackProgress_ms();
-
-    // play();
-    // pause();
-    // next();
-    // previous();
-    // setVolume();
-    // toggleShuffle();
-    // setRepeatMode();
-    // reqeustRecentlyPlayed();
-    // updateCurrentlyPlaying();
-    // getPlaybackState();
-    // addToQueue();
-    // requestQueue();
     int nerrors = arg_parse(argc, argv, (void**) &s_spotify_cmd_args);
     if (nerrors != 0)
     {
@@ -331,9 +352,10 @@ int spotify_cmd(int argc, char** argv)
     {
         Spotify::getInstance().refreshToken();
     }
-    else if (strcmp(action, "getPlaying") == 0)
+    else if (strcmp(action, "update") == 0)
     {
         Spotify::getInstance().updateCurrentlyPlaying();
+        Spotify::getInstance().updatePlaybackState();
     }
     else if (strcmp(action, "pause") == 0)
     {
