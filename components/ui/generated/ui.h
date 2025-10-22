@@ -18,8 +18,8 @@ extern "C" {
 #include "ui_themes.h"
 
 ///////////////////// SCREENS ////////////////////
-#include "screens/ui_Main_Screen.h"
 #include "screens/ui_Now_Playing_Screen.h"
+#include "screens/ui_Main_Screen.h"
 #include "screens/ui_Queue_Screen.h"
 #include "screens/ui_Playlists_Screen.h"
 #include "screens/ui_PlayList_Screen.h"
@@ -35,11 +35,15 @@ LV_IMG_DECLARE(ui_img_1151404881);    // assets/256px-Spotify_App_Logo.svg.png
 LV_IMG_DECLARE(
     ui_img_play_arrow_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/play_arrow_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
 LV_IMG_DECLARE(
+    ui_img_pause_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/pause_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
+LV_IMG_DECLARE(
     ui_img_skip_next_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/skip_next_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
 LV_IMG_DECLARE(
     ui_img_skip_previous_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/skip_previous_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
 LV_IMG_DECLARE(
     ui_img_shuffle_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/shuffle_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
+LV_IMG_DECLARE(
+    ui_img_shuffle_on_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/shuffle_on_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
 LV_IMG_DECLARE(
     ui_img_queue_music_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/queue_music_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
 LV_IMG_DECLARE(
