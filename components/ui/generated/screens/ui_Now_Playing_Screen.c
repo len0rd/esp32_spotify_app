@@ -115,7 +115,8 @@ void ui_Now_Playing_Screen_screen_init(void)
     lv_obj_set_width(ui_Now_Playing_Arc, 380);
     lv_obj_set_height(ui_Now_Playing_Arc, 380);
     lv_obj_set_align(ui_Now_Playing_Arc, LV_ALIGN_CENTER);
-    lv_arc_set_value(ui_Now_Playing_Arc, 50);
+    lv_arc_set_range(ui_Now_Playing_Arc, 0, 1000);
+    lv_arc_set_value(ui_Now_Playing_Arc, 0);
 
     ui_object_set_themeable_style_property(ui_Now_Playing_Arc, LV_PART_INDICATOR | LV_STATE_DEFAULT, LV_STYLE_ARC_COLOR,
                                            _ui_theme_color_Standout);
@@ -139,6 +140,10 @@ void ui_Now_Playing_Screen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_Play_Button, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_img_src(ui_Play_Button, &ui_img_play_arrow_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png,
                                 LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Play_Button, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(ui_Play_Button, 0, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_img_src(ui_Play_Button, &ui_img_pause_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png,
+                                LV_PART_MAIN | LV_STATE_CHECKED);
     lv_obj_set_style_bg_color(ui_Play_Button, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(ui_Play_Button, 255, LV_PART_MAIN | LV_STATE_PRESSED);
 
@@ -184,6 +189,10 @@ void ui_Now_Playing_Screen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_Shuffle_Btn, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_img_src(ui_Shuffle_Btn, &ui_img_shuffle_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png,
                                 LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Shuffle_Btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(ui_Shuffle_Btn, 0, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_img_src(ui_Shuffle_Btn, &ui_img_shuffle_on_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png,
+                                LV_PART_MAIN | LV_STATE_CHECKED);
     lv_obj_set_style_bg_color(ui_Shuffle_Btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(ui_Shuffle_Btn, 255, LV_PART_MAIN | LV_STATE_PRESSED);
 

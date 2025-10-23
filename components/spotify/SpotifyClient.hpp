@@ -103,18 +103,18 @@ private:
      * @brief Get the Spotify application client ID
      * @return Spotify client ID string
      */
-    const std::string getClientId() const
+    const std::string getClientId()
     {
-        return SPOTIFY_CLIENT_ID;
+        return SPOTIFY_CLIENT_ID.get();
     }
 
     /**
      * @brief Get the Spotify application client secret
      * @return Spotify client secret string
      */
-    const std::string getClientSecret() const
+    const std::string getClientSecret()
     {
-        return SPOTIFY_CLIENT_SECRET;
+        return SPOTIFY_CLIENT_SECRET.get();
     }
 
     /**
@@ -130,21 +130,22 @@ private:
      * @brief Get the current access token for API requests
      * @return Current access token string
      */
-    const std::string getToken()
+    std::string getToken()
     {
         return user1_access_token.get();
     }
 
-    const std::string SPOTIFY_CLIENT_ID =
-        "9aebd5c245f3425e82263b91dced28c9"; ///< Spotify application client ID
-    const std::string SPOTIFY_CLIENT_SECRET =
-        "2f3d8c07eb06420da2b8214857599971"; ///< Spotify application client secret
-
-    params::Param<std::string> user1_name = {"user1_name", ""}; ///< Stored username for user 1
-    params::Param<std::string> user1_access_token  = {"user1_token",
-                                                      ""}; ///< Stored access token for user 1
-    params::Param<std::string> user1_refresh_token = {"user1_refresh",
-                                                      ""}; ///< Stored refresh token for user 1
+    ///< Stored Spotify application client ID
+    params::Param<std::string> SPOTIFY_CLIENT_ID = {"SPOTIFY_CLIENT_ID", ""};
+    ///< Stored Spotify application client secret key
+    params::Param<params::password> SPOTIFY_CLIENT_SECRET = {"SPOTIFY_CLIENT_SECRET",
+                                                             params::password("")};
+    ///< Stored username for user 1
+    params::Param<std::string> user1_name = {"user1_name", ""};
+    ///< Stored access token for user 1
+    params::Param<params::password> user1_access_token = {"user1_token", params::password("")};
+    ///< Stored refresh token for user 1
+    params::Param<params::password> user1_refresh_token = {"user1_refresh", params::password("")};
 };
 
 #endif // __SPOTIFYCLIENT_HPP__

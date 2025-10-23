@@ -10,4 +10,5 @@ idf_component_register(
         esp_http_client
         nlohmann-json
         param
+        wifi
 )

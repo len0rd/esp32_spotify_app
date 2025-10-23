@@ -91,16 +91,17 @@ private:
 
     static constexpr size_t BUFFER_SIZE = 10240; ///< Buffer size for HTTP response data
 
+    json performRequest(esp_http_client_method_t method, const std::string& url,
+                        const std::string& header_key, const std::string& header_value,
+                        const std::string& body, const std::string& user,
+                        const std::string& password, bool ignore_response);
+
     /**
      * @brief Check if a string contains valid JSON format
      * @param str String to check for JSON format
      * @return true if string appears to be valid JSON (starts with { or [ and ends with } or ]), false otherwise
      */
-    bool isJson(const std::string& str)
-    {
-        return (!str.empty() && (str[0] == '{' || str[0] == '[') &&
-                (str.back() == '}' || str.back() == ']'));
-    }
+    bool isJson(const std::string& str);
 };
 
 #endif // ___HTTPCLIENT_HPP__

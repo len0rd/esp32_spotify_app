@@ -41,6 +41,11 @@ private:
 
 public:
     /**
+     * @brief Start the Spotify task for handling actions. This should only be called once.
+     */
+    void start_task();
+
+    /**
      * @struct TrackInfo
      * @brief Contains information about a Spotify track
      */
@@ -76,10 +81,16 @@ public:
         int getProgress_ms();
 
         /**
+         * @brief Get current playback progress accounting for elapsed time
+         * @return Current progress in milliseconds
+         */
+        int getRemaining_ms();
+
+        /**
          * @brief Get current playback progress as percentage
          * @return Progress as percentage (0-100)
          */
-        int getProgress_percent();
+        float getProgress_percent();
 
         /**
          * @brief Convert currently playing info to string representation
@@ -213,7 +224,7 @@ public:
      * @brief Update the playback state information
      * @return true if successful, false otherwise
      */
-    bool getPlaybackState();
+    bool updatePlaybackState();
 
     /**
      * @brief Refresh the Spotify API access token
@@ -235,6 +246,15 @@ public:
      */
     void setLogLevel(esp_log_level_t level);
 
+    PlaybackState& getPlaybackState()
+    {
+        return m_playbackState;
+    }
+    CurrentlyPlayingInfo& getCurrentlyPlayingInfo()
+    {
+        return m_currentlyPlayingInfo;
+    }
+
 private:
     const char*    TAG = "Spotify"; ///< Log tag for ESP-IDF logging
     SpotifyClient& m_spotifyClient =
@@ -255,6 +275,99 @@ private:
 
     friend int spotify_cmd(int    argc,
                            char** argv); ///< Allow console command access to private members
+
+    /**
+     * @brief Main task function that processes Spotify actions from the queue
+     *
+     * This function runs in a separate FreeRTOS task and continuously processes
+     * Spotify actions from the action queue. It handles API calls asynchronously
+     * to prevent blocking the main application thread.
+     */
+    void task();
+
+    TaskHandle_t m_task = NULL; ///< Handle to the FreeRTOS task for processing Spotify actions
+    QueueHandle_t
+        m_actionQueue; ///< Queue for storing Spotify actions to be processed asynchronously
+
+    /**
+     * @enum SpotifyActionType
+     * @brief Enumeration of all supported Spotify action types
+     *
+     * This enum defines the different types of actions that can be queued
+     * and processed asynchronously by the Spotify task. Each action type
+     * corresponds to a specific Spotify Web API operation.
+     */
+    enum class SpotifyActionType
+    {
+        None,                   ///< No action (default/invalid state)
+        Play,                   ///< Start or resume playback
+        Pause,                  ///< Pause current playback
+        Next,                   ///< Skip to next track
+        Previous,               ///< Skip to previous track
+        SetVolume,              ///< Change playback volume (requires int_param)
+        ToggleShuffle,          ///< Toggle shuffle mode on/off
+        SetRepeatMode,          ///< Set repeat mode (requires str_param: "off", "context", "track")
+        UpdateCurrentlyPlaying, ///< Refresh currently playing track information
+        UpdatePlaybackState     ///< Refresh playback state information
+    };
+
+    /**
+     * @struct SpotifyAction
+     * @brief Container for a Spotify action with parameters
+     *
+     * This structure represents a single action to be executed by the Spotify
+     * task. It contains the action type and optional parameters that may be
+     * required for specific actions (e.g., volume level, repeat mode).
+     */
+    struct SpotifyAction
+    {
+        SpotifyActionType type;      ///< The type of action to perform
+        std::string       str_param; ///< String parameter (used for repeat mode, etc.)
+        int               int_param; ///< Integer parameter (used for volume level, etc.)
+
+        /**
+         * @brief Convert action type to human-readable string
+         * @return C-string representation of the action type
+         */
+        const char* actionToString() const
+        {
+            switch (type)
+            {
+                case SpotifyActionType::None:
+                    return "None";
+                case SpotifyActionType::Play:
+                    return "Play";
+                case SpotifyActionType::Pause:
+                    return "Pause";
+                case SpotifyActionType::Next:
+                    return "Next";
+                case SpotifyActionType::Previous:
+                    return "Previous";
+                case SpotifyActionType::SetVolume:
+                    return "SetVolume";
+                case SpotifyActionType::ToggleShuffle:
+                    return "ToggleShuffle";
+                case SpotifyActionType::SetRepeatMode:
+                    return "SetRepeatMode";
+                case SpotifyActionType::UpdateCurrentlyPlaying:
+                    return "UpdateCurrentlyPlaying";
+                case SpotifyActionType::UpdatePlaybackState:
+                    return "UpdatePlaybackState";
+                default:
+                    return "Unknown";
+            }
+        }
+
+        /**
+         * @brief Convert the entire action to a formatted string representation
+         * @return String containing action type and all parameters for debugging/logging
+         */
+        std::string toString()
+        {
+            return "Action Type: " + std::string(actionToString()) + ", Str Param: " + str_param +
+                   ", Int Param: " + std::to_string(int_param);
+        }
+    };
 };
 
 #endif // __SPOTIFY_HPP__

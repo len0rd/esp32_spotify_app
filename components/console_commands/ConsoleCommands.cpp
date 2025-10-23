@@ -10,6 +10,7 @@
 #include "esp_heap_caps.h"
 #include "esp_heap_trace.h"
 #include "esp_system.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/FreeRTOSConfig.h"
 #include "freertos/task.h"
@@ -182,12 +183,39 @@ esp_console_cmd_t top_cmd = {
 };
 #endif // CONFIG_CONSOLE_COMMANDS_TOP
 
+#ifdef CONFIG_CONSOLE_COMMANDS_HEAP
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// heap command:
+////////////////////////////////////////////////////////////////////////////////////////////////////
+static const char* HEAP_TAG = "HeapInfo";
+esp_console_cmd_t  heap_cmd = {
+     .command = "heap",
+     .help    = "Show heap information",
+     .hint    = NULL,
+     .func =
+        [](int argc, char** argv)
+    {
+        size_t free_heap          = esp_get_free_heap_size();
+        size_t min_free_heap      = esp_get_minimum_free_heap_size();
+        size_t largest_free_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+
+        ESP_LOGI(HEAP_TAG, "Free heap: %u bytes", free_heap);
+        ESP_LOGI(HEAP_TAG, "Minimum free heap since boot: %u bytes", min_free_heap);
+        ESP_LOGI(HEAP_TAG, "Largest free block: %u bytes", largest_free_block);
+        return 0;
+    },
+     .argtable       = NULL,
+     .func_w_context = NULL,
+     .context        = NULL,
+};
+#endif // CONFIG_CONSOLE_COMMANDS_HEAP
+
 void ConsoleCommandsInit()
 {
     // init console
     esp_console_repl_t*       repl        = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-    repl_config.task_stack_size           = 20480;
+    repl_config.task_stack_size           = 8192;
     repl_config.prompt                    = "spotify>";
 
 #if defined(CONFIG_ESP_CONSOLE_UART_DEFAULT) || defined(CONFIG_ESP_CONSOLE_UART_CUSTOM)
@@ -214,4 +242,8 @@ void ConsoleCommandsInit()
 #ifdef CONFIG_CONSOLE_COMMANDS_TOP
     ESP_ERROR_CHECK(esp_console_cmd_register(&top_cmd));
 #endif // CONFIG_CONSOLE_COMMANDS_TOP
+
+#ifdef CONFIG_CONSOLE_COMMANDS_HEAP
+    ESP_ERROR_CHECK(esp_console_cmd_register(&heap_cmd));
+#endif // CONFIG_CONSOLE_COMMANDS_HEAP
 }
