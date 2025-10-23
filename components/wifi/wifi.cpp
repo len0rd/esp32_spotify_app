@@ -334,3 +334,20 @@ void espwifi_Init(void)
         cmd_do_sta_connect(3, argv);
     }
 }
+
+bool is_wifi_connected()
+{
+    wifi_ap_record_t ap_info;
+    esp_err_t        ret = esp_wifi_sta_get_ap_info(&ap_info);
+    return (ret == ESP_OK);
+}
+int get_wifi_rssi()
+{
+    wifi_ap_record_t ap_info;
+    esp_err_t        ret = esp_wifi_sta_get_ap_info(&ap_info);
+    if (ret == ESP_OK)
+    {
+        return ap_info.rssi;
+    }
+    return 0;
+}

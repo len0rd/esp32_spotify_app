@@ -187,6 +187,7 @@ void ConsoleCommandsInit()
     // init console
     esp_console_repl_t*       repl        = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
+    repl_config.task_stack_size           = 20480;
     repl_config.prompt                    = "spotify>";
 
 #if defined(CONFIG_ESP_CONSOLE_UART_DEFAULT) || defined(CONFIG_ESP_CONSOLE_UART_CUSTOM)

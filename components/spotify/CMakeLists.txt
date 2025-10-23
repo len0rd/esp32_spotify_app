@@ -1,0 +1,13 @@
+idf_component_register(
+    SRCS
+        "HttpClient.cpp"
+        "SpotifyClient.cpp"
+        "Spotify.cpp"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        mbedtls
+        esp_http_client
+        nlohmann-json
+        param
+)
