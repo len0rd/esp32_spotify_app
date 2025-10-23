@@ -17,8 +17,9 @@
 #include "lwip/inet.h"
 
 // Non volatile storage of wifi ssid and password
-params::Param<std::string> s_ssid{"wifi_ssid", std::string("")};
-params::Param<std::string> s_password{"wifi_password", std::string("")};
+
+params::Param<std::string>      s_ssid{"wifi_ssid", std::string("")};
+params::Param<params::password> s_password{"wifi_password", params::password("")};
 
 #define MAX_RECONNECT_TIMES (5)
 

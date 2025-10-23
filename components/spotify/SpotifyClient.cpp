@@ -2,13 +2,12 @@
 
 bool SpotifyClient::refreshToken()
 {
-    json response =
-        httpClient.post(AUTH_URL, "Content-Type", "application/x-www-form-urlencoded",
-                        "grant_type=refresh_token&refresh_token=" + user1_refresh_token.get(),
-                        getClientId(), getClientSecret());
+    json response = httpClient.post(AUTH_URL, "Content-Type", "application/x-www-form-urlencoded",
+                                    "grant_type=refresh_token&refresh_token=" + getRefreshToken(),
+                                    getClientId(), getClientSecret());
     if (response.contains("access_token"))
     {
-        user1_access_token.set(response["access_token"]);
+        user1_access_token.set(params::password(response["access_token"].get<std::string>()));
         return true;
     }
     return false;
@@ -16,7 +15,7 @@ bool SpotifyClient::refreshToken()
 
 json SpotifyClient::get(const std::string& api_path)
 {
-    if (user1_access_token.get().empty())
+    if (getToken().size() == 0)
     {
         ESP_LOGI(TAG, "No access token, refreshing token...");
         if (!refreshToken())
@@ -57,7 +56,7 @@ json SpotifyClient::get(const std::string& api_path)
 
 json SpotifyClient::post(const std::string& api_path, std::string body, bool ignore_response)
 {
-    if (user1_access_token.get().empty())
+    if (getToken().size() == 0)
     {
         ESP_LOGI(TAG, "No access token, refreshing token...");
         if (!refreshToken())
@@ -99,7 +98,7 @@ json SpotifyClient::post(const std::string& api_path, std::string body, bool ign
 
 json SpotifyClient::put(const std::string& api_path, std::string body, bool ignore_response)
 {
-    if (user1_access_token.get().empty())
+    if (getToken().size() == 0)
     {
         ESP_LOGI(TAG, "No access token, refreshing token...");
         if (!refreshToken())

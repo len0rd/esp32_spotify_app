@@ -154,6 +154,46 @@ template <> inline esp_err_t params::Param<bool>::setFromString(const std::strin
     return save();
 }
 
+/********************** password parameter template functions **********************/
+struct password : public std::string
+{
+    // prevent polymorphic deletion
+    ~password() = default;
+};
+template <> inline std::string params::Param<password>::toString() const
+{
+    return std::string(std::min(m_param.size(), 50u), '*');
+}
+template <> inline esp_err_t params::Param<password>::save()
+{
+    return NvsMgr::getInstance().set(m_paramName.c_str(), (void*) &m_param.at(0), m_param.length());
+}
+template <> inline esp_err_t params::Param<password>::getFromNvs()
+{
+    char      buf[400];
+    size_t    length = 400;
+    esp_err_t err    = NvsMgr::getInstance().get(m_paramName.c_str(), buf, length);
+    if (err != ESP_OK)
+    {
+        return err; // Return error if not found or other error
+    }
+    if (length > 0)
+    {
+        buf[length] = 0;
+        m_param     = password((const char*) buf);
+    }
+    else
+    {
+        m_param = password("");
+    }
+    return err;
+}
+template <> inline esp_err_t params::Param<password>::setFromString(const std::string& value)
+{
+    m_param = password(value);
+    return save();
+}
+
 } // namespace params
 
 #endif // __PARAM_H__

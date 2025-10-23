@@ -121,7 +121,7 @@ private:
      * @brief Get the stored refresh token for the current user
      * @return Stored refresh token string
      */
-    const std::string getRefreshToken()
+    std::string getRefreshToken()
     {
         return user1_refresh_token.get();
     }
@@ -130,7 +130,7 @@ private:
      * @brief Get the current access token for API requests
      * @return Current access token string
      */
-    const std::string getToken()
+    std::string getToken()
     {
         return user1_access_token.get();
     }
@@ -140,11 +140,12 @@ private:
     const std::string SPOTIFY_CLIENT_SECRET =
         "2f3d8c07eb06420da2b8214857599971"; ///< Spotify application client secret
 
-    params::Param<std::string> user1_name = {"user1_name", ""}; ///< Stored username for user 1
-    params::Param<std::string> user1_access_token  = {"user1_token",
-                                                      ""}; ///< Stored access token for user 1
-    params::Param<std::string> user1_refresh_token = {"user1_refresh",
-                                                      ""}; ///< Stored refresh token for user 1
+    ///< Stored username for user 1
+    params::Param<std::string> user1_name = {"user1_name", ""};
+    ///< Stored access token for user 1
+    params::Param<params::password> user1_access_token = {"user1_token", params::password("")};
+    ///< Stored refresh token for user 1
+    params::Param<params::password> user1_refresh_token = {"user1_refresh", params::password("")};
 };
 
 #endif // __SPOTIFYCLIENT_HPP__
