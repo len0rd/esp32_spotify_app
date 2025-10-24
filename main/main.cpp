@@ -38,10 +38,11 @@ std::string ms_to_min_sec(int ms)
     return std::string(buffer);
 }
 
-static void ui_update_task(void* arg)
+const size_t ARC_MAX_VAL       = 1000;
+static bool  arc_being_touched = false;
+static void  ui_update_task(void* arg)
 {
     lv_arc_set_value(ui_Now_Playing_Arc, 0);
-    const size_t arc_range = 1000;
 
     while (!is_wifi_connected())
         vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -56,14 +57,18 @@ static void ui_update_task(void* arg)
             lv_obj_add_state(ui_Play_Button, LV_STATE_CHECKED);
 
             // update arc
-            int arc_value = (int) (arc_range * sp.getCurrentlyPlayingInfo().getProgress_percent());
-            if (arc_value != lv_arc_get_value(ui_Now_Playing_Arc))
-                lv_arc_set_value(ui_Now_Playing_Arc, arc_value);
+            if (!arc_being_touched)
+            {
+                int arc_value =
+                    (int) (ARC_MAX_VAL * sp.getCurrentlyPlayingInfo().getProgress_percent());
+                if (arc_value != lv_arc_get_value(ui_Now_Playing_Arc))
+                    lv_arc_set_value(ui_Now_Playing_Arc, arc_value);
 
-            std::string track_progress =
-                ms_to_min_sec(sp.getCurrentlyPlayingInfo().getProgress_ms());
-            if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)
-                lv_label_set_text(ui_Song_Time_Played_Label, track_progress.c_str());
+                std::string track_progress =
+                    ms_to_min_sec(sp.getCurrentlyPlayingInfo().getProgress_ms());
+                if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)
+                    lv_label_set_text(ui_Song_Time_Played_Label, track_progress.c_str());
+            }
 
             std::string track_duration =
                 ms_to_min_sec(sp.getCurrentlyPlayingInfo().currentTrack.duration_ms);
@@ -142,6 +147,30 @@ static void ui_shuffle_cb(lv_event_t* e)
     }
 }
 
+static void ui_arc_cb(lv_event_t* e)
+{
+    lv_event_code_t code      = lv_event_get_code(e);
+    int             arc_value = lv_arc_get_value(ui_Now_Playing_Arc);
+    int             position_ms =
+        (int) ((float) arc_value / (float) ARC_MAX_VAL *
+               (float) Spotify::getInstance().getCurrentlyPlayingInfo().currentTrack.duration_ms);
+    // update time label while dragging
+    std::string track_progress = ms_to_min_sec(position_ms);
+    if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)
+        lv_label_set_text(ui_Song_Time_Played_Label, track_progress.c_str());
+
+    if (code == LV_EVENT_PRESSED)
+    {
+        arc_being_touched = true;
+    }
+    else if (code == LV_EVENT_RELEASED)
+    {
+        Spotify::getInstance().seek(position_ms);
+
+        arc_being_touched = false;
+    }
+}
+
 static void user_encoder_loop_task(void* arg)
 {
     Spotify& sp = Spotify::getInstance();
@@ -178,6 +207,7 @@ extern "C" void app_main(void)
     lv_obj_add_event_cb(ui_Skip_Forward_Btn, ui_next_cb, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Skip_Back_Btn, ui_previous_cb, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Shuffle_Btn, ui_shuffle_cb, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_ALL, NULL);
     user_encoder_init();
     xTaskCreate(ui_update_task, "ui_update_task", 8 * 1024, NULL, 5, NULL);
 

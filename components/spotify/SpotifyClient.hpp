@@ -105,7 +105,7 @@ private:
      */
     const std::string getClientId()
     {
-        return SPOTIFY_CLIENT_ID.get();
+        return client_id.get();
     }
 
     /**
@@ -114,7 +114,7 @@ private:
      */
     const std::string getClientSecret()
     {
-        return SPOTIFY_CLIENT_SECRET.get();
+        return client_secret.get();
     }
 
     /**
@@ -136,10 +136,9 @@ private:
     }
 
     ///< Stored Spotify application client ID
-    params::Param<std::string> SPOTIFY_CLIENT_ID = {"SPOTIFY_CLIENT_ID", ""};
+    params::Param<std::string> client_id = {"client_id", ""};
     ///< Stored Spotify application client secret key
-    params::Param<params::password> SPOTIFY_CLIENT_SECRET = {"SPOTIFY_CLIENT_SECRET",
-                                                             params::password("")};
+    params::Param<params::password> client_secret = {"client_secret", params::password("")};
     ///< Stored username for user 1
     params::Param<std::string> user1_name = {"user1_name", ""};
     ///< Stored access token for user 1

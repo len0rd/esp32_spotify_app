@@ -78,6 +78,20 @@ void Spotify::task()
                     break;
                 }
 
+                case SpotifyActionType::Seek:
+                {
+                    bool ret =
+                        m_spotifyClient
+                            .put("me/player/seek?position_ms=" + std::to_string(action.int_param),
+                                 "", true)
+                            .contains("error") == false;
+                    if (ret)
+                    {
+                        m_currentlyPlayingInfo.progress_ms = action.int_param;
+                    }
+                    break;
+                }
+
                 case SpotifyActionType::SetVolume:
                 {
                     if (!m_playbackState.supports_volume)
@@ -347,6 +361,11 @@ bool Spotify::toggleShuffle()
 bool Spotify::setRepeatMode(const std::string& mode)
 {
     SpotifyAction action = {SpotifyActionType::SetRepeatMode, mode};
+    return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
+}
+bool Spotify::seek(int position_ms)
+{
+    SpotifyAction action = {SpotifyActionType::Seek, "", position_ms};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 bool Spotify::addToQueue(const TrackInfo&)

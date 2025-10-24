@@ -160,6 +160,13 @@ public:
     bool previous();
 
     /**
+     * @brief Seek to a specific position in the currently playing track
+     * @param position_ms Position in milliseconds to seek to
+     * @return true if successful, false otherwise
+     */
+    bool seek(int position_ms);
+
+    /**
      * @brief Set the playback volume
      * @param volume Volume level (0-100)
      * @return true if successful, false otherwise
@@ -304,9 +311,10 @@ private:
         Pause,                  ///< Pause current playback
         Next,                   ///< Skip to next track
         Previous,               ///< Skip to previous track
-        SetVolume,              ///< Change playback volume (requires int_param)
+        Seek,                   ///< Seek to a specific position in the currently playing track
+        SetVolume,              ///< Change playback volume
         ToggleShuffle,          ///< Toggle shuffle mode on/off
-        SetRepeatMode,          ///< Set repeat mode (requires str_param: "off", "context", "track")
+        SetRepeatMode,          ///< Set repeat mode
         UpdateCurrentlyPlaying, ///< Refresh currently playing track information
         UpdatePlaybackState     ///< Refresh playback state information
     };
@@ -345,6 +353,8 @@ private:
                     return "Previous";
                 case SpotifyActionType::SetVolume:
                     return "SetVolume";
+                case SpotifyActionType::Seek:
+                    return "Seek";
                 case SpotifyActionType::ToggleShuffle:
                     return "ToggleShuffle";
                 case SpotifyActionType::SetRepeatMode:
