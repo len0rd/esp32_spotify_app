@@ -27,6 +27,7 @@
 #include <Spotify.hpp>
 
 static const char* TAG = "main";
+static Spotify&    sp  = Spotify::getInstance();
 
 std::string ms_to_min_sec(int ms)
 {
@@ -48,7 +49,6 @@ static void  ui_update_task(void* arg)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    Spotify& sp = Spotify::getInstance();
     while (1)
     {
         if (sp.isPlaying())
@@ -109,7 +109,6 @@ static void ui_play_pause_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code != LV_EVENT_CLICKED)
         return;
-    Spotify& sp = Spotify::getInstance();
     if (sp.isPlaying())
     {
         sp.pause();
@@ -125,7 +124,7 @@ static void ui_next_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        Spotify::getInstance().next();
+        sp.next();
     }
 }
 
@@ -134,7 +133,7 @@ static void ui_previous_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        Spotify::getInstance().previous();
+        sp.previous();
     }
 }
 
@@ -143,17 +142,16 @@ static void ui_shuffle_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        Spotify::getInstance().toggleShuffle();
+        sp.toggleShuffle();
     }
 }
 
 static void ui_arc_cb(lv_event_t* e)
 {
-    lv_event_code_t code      = lv_event_get_code(e);
-    int             arc_value = lv_arc_get_value(ui_Now_Playing_Arc);
-    int             position_ms =
-        (int) ((float) arc_value / (float) ARC_MAX_VAL *
-               (float) Spotify::getInstance().getCurrentlyPlayingInfo().currentTrack.duration_ms);
+    lv_event_code_t code        = lv_event_get_code(e);
+    int             arc_value   = lv_arc_get_value(ui_Now_Playing_Arc);
+    int             position_ms = (int) ((float) arc_value / (float) ARC_MAX_VAL *
+                             (float) sp.getCurrentlyPlayingInfo().currentTrack.duration_ms);
     // update time label while dragging
     std::string track_progress = ms_to_min_sec(position_ms);
     if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)
@@ -165,7 +163,7 @@ static void ui_arc_cb(lv_event_t* e)
     }
     else if (code == LV_EVENT_RELEASED)
     {
-        Spotify::getInstance().seek(position_ms);
+        sp.seek(position_ms);
 
         arc_being_touched = false;
     }
@@ -173,9 +171,7 @@ static void ui_arc_cb(lv_event_t* e)
 
 static void user_encoder_loop_task(void* arg)
 {
-    Spotify& sp = Spotify::getInstance();
-
-    for (;;)
+    while (1)
     {
         EventBits_t even =
             xEventGroupWaitBits(knob_even_, BIT_EVEN_ALL, pdTRUE, pdFALSE, pdMS_TO_TICKS(5000));
@@ -196,7 +192,6 @@ static void user_encoder_loop_task(void* arg)
 
 extern "C" void app_main(void)
 {
-    Spotify::getInstance();
     ConsoleCommandsInit();
     espwifi_Init();
     ESP_LOGI(TAG, "Starting Spotify App\n");
@@ -219,9 +214,9 @@ extern "C" void app_main(void)
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
-    Spotify::getInstance().start_task();
-    Spotify::getInstance().updateCurrentlyPlaying();
-    Spotify::getInstance().updatePlaybackState();
+    sp.start_task();
+    sp.updateCurrentlyPlaying();
+    sp.updatePlaybackState();
 
     while (1)
         vTaskSuspend(NULL);

@@ -253,13 +253,40 @@ public:
      */
     void setLogLevel(esp_log_level_t level);
 
+    /**
+     * @brief Get the current playback state information
+     * @return Reference to the current PlaybackState structure
+     */
     PlaybackState& getPlaybackState()
     {
         return m_playbackState;
     }
+
+    /**
+     * @brief Get the currently playing track information
+     * @return Reference to the CurrentlyPlayingInfo structure
+     */
     CurrentlyPlayingInfo& getCurrentlyPlayingInfo()
     {
         return m_currentlyPlayingInfo;
+    }
+
+    /**
+     * @brief Verbose mode means all queued actions will log detailed information
+     * @return True if verbose mode is enabled, false otherwise
+     */
+    bool isVerbose() const
+    {
+        return m_verbose;
+    }
+
+    /**
+     * @brief Verbose mode means all queued actions will log detailed information
+     * @param verbose True to enable verbose mode, false to disable
+     */
+    void setVerbose(bool verbose)
+    {
+        m_verbose = verbose;
     }
 
 private:
@@ -270,6 +297,7 @@ private:
     CurrentlyPlayingInfo   m_currentlyPlayingInfo; ///< Currently playing track information
     std::vector<TrackInfo> m_queue;                ///< Current playback queue
     std::vector<TrackInfo> m_recentlyPlayed;       ///< Recently played tracks
+    bool                   m_verbose = false;      ///< Whether to log detailed information
 
     /**
      * @brief Get current system timestamp in milliseconds
@@ -329,9 +357,10 @@ private:
      */
     struct SpotifyAction
     {
-        SpotifyActionType type;      ///< The type of action to perform
-        std::string       str_param; ///< String parameter (used for repeat mode, etc.)
-        int               int_param; ///< Integer parameter (used for volume level, etc.)
+        SpotifyActionType type;            ///< The type of action to perform
+        std::string       str_param;       ///< String parameter (used for repeat mode, etc.)
+        int               int_param;       ///< Integer parameter (used for volume level, etc.)
+        bool              verbose = false; ///< Whether to log detailed action information
 
         /**
          * @brief Convert action type to human-readable string
