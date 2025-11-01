@@ -39,7 +39,42 @@ esp_console_cmd_t reboot_cmd = {
 };
 #endif // CONFIG_CONSOLE_COMMANDS_REBOOT
 
+#ifdef CONFIG_CONSOLE_COMMANDS_HEAP
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// heap command:
+////////////////////////////////////////////////////////////////////////////////////////////////////
+static const char* HEAP_TAG     = "HeapInfo";
+static size_t      initial_heap = 0;
+int                heapCmd(int argc, char** argv)
+{
+    // print heap stats
+    size_t free_heap        = esp_get_free_heap_size();
+    float  heap_utilization = ((1.0f - (float) (initial_heap - free_heap) / initial_heap)) * 100.0f;
+    size_t min_free_heap    = esp_get_minimum_free_heap_size();
+    size_t largest_free_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+
+    printf(
+        "Heap Info: Free: %u/%uB (%0.1f%%), Minimum free heap since boot: %u bytes, Largest free "
+        "block: %u bytes, \n",
+        (unsigned int) free_heap, (unsigned int) initial_heap, heap_utilization, min_free_heap,
+        (unsigned int) largest_free_block);
+    return 0;
+}
+esp_console_cmd_t heap_cmd = {
+    .command        = "heap",
+    .help           = "Show heap information",
+    .hint           = NULL,
+    .func           = heapCmd,
+    .argtable       = NULL,
+    .func_w_context = NULL,
+    .context        = NULL,
+};
+#endif // CONFIG_CONSOLE_COMMANDS_HEAP
+
 #ifdef CONFIG_CONSOLE_COMMANDS_TOP
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// top command:
+////////////////////////////////////////////////////////////////////////////////////////////////////
 struct TaskInfo
 {
     const char*  name;
@@ -170,6 +205,10 @@ int                          topCmd(int argc, char** argv)
     printf("+----------------------+---------+----------+-------------+----------+-----------+\n");
     // clang-format on
 
+#ifdef CONFIG_CONSOLE_COMMANDS_HEAP
+    heapCmd(0, nullptr);
+#endif // CONFIG_CONSOLE_COMMANDS_HEAP
+
     return 0;
 }
 esp_console_cmd_t top_cmd = {
@@ -183,35 +222,12 @@ esp_console_cmd_t top_cmd = {
 };
 #endif // CONFIG_CONSOLE_COMMANDS_TOP
 
-#ifdef CONFIG_CONSOLE_COMMANDS_HEAP
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// heap command:
-////////////////////////////////////////////////////////////////////////////////////////////////////
-static const char* HEAP_TAG = "HeapInfo";
-esp_console_cmd_t  heap_cmd = {
-     .command = "heap",
-     .help    = "Show heap information",
-     .hint    = NULL,
-     .func =
-        [](int argc, char** argv)
-    {
-        size_t free_heap          = esp_get_free_heap_size();
-        size_t min_free_heap      = esp_get_minimum_free_heap_size();
-        size_t largest_free_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
-
-        ESP_LOGI(HEAP_TAG, "Free heap: %u bytes", free_heap);
-        ESP_LOGI(HEAP_TAG, "Minimum free heap since boot: %u bytes", min_free_heap);
-        ESP_LOGI(HEAP_TAG, "Largest free block: %u bytes", largest_free_block);
-        return 0;
-    },
-     .argtable       = NULL,
-     .func_w_context = NULL,
-     .context        = NULL,
-};
-#endif // CONFIG_CONSOLE_COMMANDS_HEAP
-
 void ConsoleCommandsInit()
 {
+#ifdef CONFIG_CONSOLE_COMMANDS_HEAP
+    initial_heap = esp_get_free_heap_size();
+#endif // CONFIG_CONSOLE_COMMANDS_HEAP
+
     // init console
     esp_console_repl_t*       repl        = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();

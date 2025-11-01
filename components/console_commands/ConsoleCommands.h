@@ -14,6 +14,7 @@
 #include <string>
 #include <sdkconfig.h>
 
+int  topCmd(int argc, char** argv);
 void ConsoleCommandsInit();
 
 #endif // __CONSOLE_COMMANDS_H__
