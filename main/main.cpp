@@ -61,8 +61,16 @@ static void  ui_update_task(void* arg)
             {
                 int arc_value =
                     (int) (ARC_MAX_VAL * sp.getCurrentlyPlayingInfo().getProgress_percent());
-                if (arc_value != lv_arc_get_value(ui_Now_Playing_Arc))
+                int last_arc_value = lv_arc_get_value(ui_Now_Playing_Arc);
+                if (arc_value != last_arc_value)
+                {
                     lv_arc_set_value(ui_Now_Playing_Arc, arc_value);
+                    int diff = abs(arc_value - last_arc_value);
+                    if (diff > 20)
+                    {
+                        lv_obj_invalidate(ui_Now_Playing_Arc); // force redraw for large jumps
+                    }
+                }
 
                 std::string track_progress =
                     ms_to_min_sec(sp.getCurrentlyPlayingInfo().getProgress_ms());
