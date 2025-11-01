@@ -33,6 +33,10 @@ extern lv_obj_t * ui____initial_actions0;
 // IMAGES AND IMAGE SETS
 LV_IMG_DECLARE(ui_img_1151404881);    // assets/256px-Spotify_App_Logo.svg.png
 LV_IMG_DECLARE(
+    ui_img_wifi_off_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);    // assets/wifi_off_30dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png
+LV_IMG_DECLARE(
+    ui_img_battery_android_0_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);    // assets/battery_android_0_30dp_E3E3E3_FILL0_wght400_GRAD0_opsz24.png
+LV_IMG_DECLARE(
     ui_img_play_arrow_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/play_arrow_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
 LV_IMG_DECLARE(
     ui_img_pause_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png);    // assets/pause_40dp_E3E3E3_FILL0_wght400_GRAD0_opsz40.png
