@@ -61,7 +61,7 @@ public:
      * @param api_path The API endpoint path (relative to base URL)
      * @return JSON response from the API
      */
-    json get(const std::string& api_path);
+    std::unique_ptr<json> get(const std::string& api_path);
 
     /**
      * @brief Perform a POST request to a Spotify API endpoint
@@ -70,7 +70,8 @@ public:
      * @param ignore_response If true, don't parse response as JSON (optional, default: false)
      * @return JSON response from the API (empty if ignore_response is true)
      */
-    json post(const std::string& api_path, std::string body = "", bool ignore_response = false);
+    std::unique_ptr<json> post(const std::string& api_path, std::string body = "",
+                               bool ignore_response = false);
 
     /**
      * @brief Perform a PUT request to a Spotify API endpoint
@@ -79,7 +80,8 @@ public:
      * @param ignore_response If true, don't parse response as JSON (optional, default: false)
      * @return JSON response from the API (empty if ignore_response is true)
      */
-    json put(const std::string& api_path, std::string body = "", bool ignore_response = false);
+    std::unique_ptr<json> put(const std::string& api_path, std::string body = "",
+                              bool ignore_response = false);
 
     /**
      * @brief Set the logging level for SpotifyClient operations
@@ -89,6 +91,11 @@ public:
     {
         esp_log_level_set(TAG, level);
         httpClient.setLogLevel(level);
+    }
+
+    HttpClient& getHttpClient()
+    {
+        return httpClient;
     }
 
 private:
@@ -105,7 +112,7 @@ private:
      */
     const std::string getClientId()
     {
-        return SPOTIFY_CLIENT_ID.get();
+        return client_id.get();
     }
 
     /**
@@ -114,7 +121,7 @@ private:
      */
     const std::string getClientSecret()
     {
-        return SPOTIFY_CLIENT_SECRET.get();
+        return client_secret.get();
     }
 
     /**
@@ -136,10 +143,9 @@ private:
     }
 
     ///< Stored Spotify application client ID
-    params::Param<std::string> SPOTIFY_CLIENT_ID = {"SPOTIFY_CLIENT_ID", ""};
+    params::Param<std::string> client_id = {"client_id", ""};
     ///< Stored Spotify application client secret key
-    params::Param<params::password> SPOTIFY_CLIENT_SECRET = {"SPOTIFY_CLIENT_SECRET",
-                                                             params::password("")};
+    params::Param<params::password> client_secret = {"client_secret", params::password("")};
     ///< Stored username for user 1
     params::Param<std::string> user1_name = {"user1_name", ""};
     ///< Stored access token for user 1

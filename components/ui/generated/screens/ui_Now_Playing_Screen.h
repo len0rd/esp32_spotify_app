@@ -14,6 +14,8 @@ extern "C" {
 extern void ui_Now_Playing_Screen_screen_init(void);
 extern void ui_Now_Playing_Screen_screen_destroy(void);
 extern lv_obj_t * ui_Now_Playing_Screen;
+extern lv_obj_t * ui_Wifi_Indicator;
+extern lv_obj_t * ui_Battery_Indicator;
 extern lv_obj_t * ui_Song_Label;
 extern lv_obj_t * ui_Artist_Label;
 extern lv_obj_t * ui_Song_Time_Played_Label;
@@ -29,6 +31,8 @@ extern void ui_event_Now_Playing_Back_Btn(lv_event_t * e);
 extern lv_obj_t * ui_Now_Playing_Back_Btn;
 // CUSTOM VARIABLES
 extern lv_obj_t * uic_Now_Playing_Screen;
+extern lv_obj_t * uic_Wifi_Indicator;
+extern lv_obj_t * uic_Battery_Indicator;
 extern lv_obj_t * uic_Song_Label;
 extern lv_obj_t * uic_Artist_Label;
 extern lv_obj_t * uic_Song_Time_Played_Label;

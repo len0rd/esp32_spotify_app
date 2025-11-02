@@ -16,8 +16,12 @@ lv_obj_t * uic_Song_Time_Remaining_Label;
 lv_obj_t * uic_Song_Time_Played_Label;
 lv_obj_t * uic_Artist_Label;
 lv_obj_t * uic_Song_Label;
+lv_obj_t * uic_Battery_Indicator;
+lv_obj_t * uic_Wifi_Indicator;
 lv_obj_t * uic_Now_Playing_Screen;
 lv_obj_t * ui_Now_Playing_Screen = NULL;
+lv_obj_t * ui_Wifi_Indicator = NULL;
+lv_obj_t * ui_Battery_Indicator = NULL;
 lv_obj_t * ui_Song_Label = NULL;
 lv_obj_t * ui_Artist_Label = NULL;
 lv_obj_t * ui_Song_Time_Played_Label = NULL;
@@ -58,6 +62,26 @@ void ui_Now_Playing_Screen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_Now_Playing_Screen, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_img_src(ui_Now_Playing_Screen, &ui_img_1151404881, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_img_opa(ui_Now_Playing_Screen, 150, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Wifi_Indicator = lv_img_create(ui_Now_Playing_Screen);
+    lv_img_set_src(ui_Wifi_Indicator, &ui_img_wifi_off_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);
+    lv_obj_set_width(ui_Wifi_Indicator, LV_SIZE_CONTENT);   /// 30
+    lv_obj_set_height(ui_Wifi_Indicator, LV_SIZE_CONTENT);    /// 30
+    lv_obj_set_x(ui_Wifi_Indicator, 40);
+    lv_obj_set_y(ui_Wifi_Indicator, -147);
+    lv_obj_set_align(ui_Wifi_Indicator, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_Wifi_Indicator, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
+    lv_obj_clear_flag(ui_Wifi_Indicator, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+
+    ui_Battery_Indicator = lv_img_create(ui_Now_Playing_Screen);
+    lv_img_set_src(ui_Battery_Indicator, &ui_img_battery_android_0_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);
+    lv_obj_set_width(ui_Battery_Indicator, LV_SIZE_CONTENT);   /// 30
+    lv_obj_set_height(ui_Battery_Indicator, LV_SIZE_CONTENT);    /// 30
+    lv_obj_set_x(ui_Battery_Indicator, -45);
+    lv_obj_set_y(ui_Battery_Indicator, -147);
+    lv_obj_set_align(ui_Battery_Indicator, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_Battery_Indicator, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
+    lv_obj_clear_flag(ui_Battery_Indicator, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_Song_Label = lv_label_create(ui_Now_Playing_Screen);
     lv_obj_set_width(ui_Song_Label, 360);
@@ -229,6 +253,8 @@ void ui_Now_Playing_Screen_screen_init(void)
     lv_obj_add_event_cb(ui_View_Queue_Btn, ui_event_View_Queue_Btn, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Now_Playing_Back_Btn, ui_event_Now_Playing_Back_Btn, LV_EVENT_ALL, NULL);
     uic_Now_Playing_Screen = ui_Now_Playing_Screen;
+    uic_Wifi_Indicator = ui_Wifi_Indicator;
+    uic_Battery_Indicator = ui_Battery_Indicator;
     uic_Song_Label = ui_Song_Label;
     uic_Artist_Label = ui_Artist_Label;
     uic_Song_Time_Played_Label = ui_Song_Time_Played_Label;
@@ -250,6 +276,10 @@ void ui_Now_Playing_Screen_screen_destroy(void)
     // NULL screen variables
     uic_Now_Playing_Screen = NULL;
     ui_Now_Playing_Screen = NULL;
+    uic_Wifi_Indicator = NULL;
+    ui_Wifi_Indicator = NULL;
+    uic_Battery_Indicator = NULL;
+    ui_Battery_Indicator = NULL;
     uic_Song_Label = NULL;
     ui_Song_Label = NULL;
     uic_Artist_Label = NULL;

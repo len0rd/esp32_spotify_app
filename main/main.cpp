@@ -27,27 +27,26 @@
 #include <Spotify.hpp>
 
 static const char* TAG = "main";
+static Spotify&    sp  = Spotify::getInstance();
 
 std::string ms_to_min_sec(int ms)
 {
-    int  total_seconds = ms / 1000;
-    int  minutes       = total_seconds / 60;
-    int  seconds       = total_seconds % 60;
-    char buffer[10];
-    snprintf(buffer, sizeof(buffer), "%02d:%02d", minutes, seconds);
-    return std::string(buffer);
+    int total_seconds = ms / 1000;
+    int minutes       = total_seconds / 60;
+    int seconds       = total_seconds % 60;
+    return std::to_string(minutes) + ":" + std::to_string(seconds) + (seconds < 10 ? "0" : "");
 }
 
-static void ui_update_task(void* arg)
+const size_t ARC_MAX_VAL       = 1000;
+static bool  arc_being_touched = false;
+static void  ui_update_task(void* arg)
 {
     lv_arc_set_value(ui_Now_Playing_Arc, 0);
-    const size_t arc_range = 1000;
 
     while (!is_wifi_connected())
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    Spotify& sp = Spotify::getInstance();
     while (1)
     {
         if (sp.isPlaying())
@@ -56,14 +55,26 @@ static void ui_update_task(void* arg)
             lv_obj_add_state(ui_Play_Button, LV_STATE_CHECKED);
 
             // update arc
-            int arc_value = (int) (arc_range * sp.getCurrentlyPlayingInfo().getProgress_percent());
-            if (arc_value != lv_arc_get_value(ui_Now_Playing_Arc))
-                lv_arc_set_value(ui_Now_Playing_Arc, arc_value);
+            if (!arc_being_touched)
+            {
+                int arc_value =
+                    (int) (ARC_MAX_VAL * sp.getCurrentlyPlayingInfo().getProgress_percent());
+                int last_arc_value = lv_arc_get_value(ui_Now_Playing_Arc);
+                if (arc_value != last_arc_value)
+                {
+                    lv_arc_set_value(ui_Now_Playing_Arc, arc_value);
+                    int diff = abs(arc_value - last_arc_value);
+                    if (diff > 20)
+                    {
+                        lv_obj_invalidate(ui_Now_Playing_Arc); // force redraw for large jumps
+                    }
+                }
 
-            std::string track_progress =
-                ms_to_min_sec(sp.getCurrentlyPlayingInfo().getProgress_ms());
-            if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)
-                lv_label_set_text(ui_Song_Time_Played_Label, track_progress.c_str());
+                std::string track_progress =
+                    ms_to_min_sec(sp.getCurrentlyPlayingInfo().getProgress_ms());
+                if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)
+                    lv_label_set_text(ui_Song_Time_Played_Label, track_progress.c_str());
+            }
 
             std::string track_duration =
                 ms_to_min_sec(sp.getCurrentlyPlayingInfo().currentTrack.duration_ms);
@@ -104,7 +115,6 @@ static void ui_play_pause_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code != LV_EVENT_CLICKED)
         return;
-    Spotify& sp = Spotify::getInstance();
     if (sp.isPlaying())
     {
         sp.pause();
@@ -120,7 +130,7 @@ static void ui_next_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        Spotify::getInstance().next();
+        sp.next();
     }
 }
 
@@ -129,7 +139,7 @@ static void ui_previous_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        Spotify::getInstance().previous();
+        sp.previous();
     }
 }
 
@@ -138,15 +148,36 @@ static void ui_shuffle_cb(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED)
     {
-        Spotify::getInstance().toggleShuffle();
+        sp.toggleShuffle();
+    }
+}
+
+static void ui_arc_cb(lv_event_t* e)
+{
+    lv_event_code_t code      = lv_event_get_code(e);
+    int             arc_value = lv_arc_get_value(ui_Now_Playing_Arc);
+    int             position_ms =
+        (arc_value * sp.getCurrentlyPlayingInfo().currentTrack.duration_ms) / ARC_MAX_VAL;
+    // update time label while dragging
+    std::string track_progress = ms_to_min_sec(position_ms);
+    if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)
+        lv_label_set_text(ui_Song_Time_Played_Label, track_progress.c_str());
+
+    if (code == LV_EVENT_PRESSED)
+    {
+        arc_being_touched = true;
+    }
+    else if (code == LV_EVENT_RELEASED)
+    {
+        sp.seek(position_ms);
+
+        arc_being_touched = false;
     }
 }
 
 static void user_encoder_loop_task(void* arg)
 {
-    Spotify& sp = Spotify::getInstance();
-
-    for (;;)
+    while (1)
     {
         EventBits_t even =
             xEventGroupWaitBits(knob_even_, BIT_EVEN_ALL, pdTRUE, pdFALSE, pdMS_TO_TICKS(5000));
@@ -167,17 +198,18 @@ static void user_encoder_loop_task(void* arg)
 
 extern "C" void app_main(void)
 {
-    Spotify::getInstance();
     ConsoleCommandsInit();
     espwifi_Init();
     ESP_LOGI(TAG, "Starting Spotify App\n");
 
     display_init();
     ui_init();
-    lv_obj_add_event_cb(ui_Play_Button, ui_play_pause_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Skip_Forward_Btn, ui_next_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Skip_Back_Btn, ui_previous_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Shuffle_Btn, ui_shuffle_cb, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Play_Button, ui_play_pause_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Skip_Forward_Btn, ui_next_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Skip_Back_Btn, ui_previous_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Shuffle_Btn, ui_shuffle_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_RELEASED, NULL);
     user_encoder_init();
     xTaskCreate(ui_update_task, "ui_update_task", 8 * 1024, NULL, 5, NULL);
 
@@ -189,9 +221,9 @@ extern "C" void app_main(void)
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
-    Spotify::getInstance().start_task();
-    Spotify::getInstance().updateCurrentlyPlaying();
-    Spotify::getInstance().updatePlaybackState();
+    sp.start_task();
+    sp.updateCurrentlyPlaying();
+    sp.updatePlaybackState();
 
     while (1)
         vTaskSuspend(NULL);

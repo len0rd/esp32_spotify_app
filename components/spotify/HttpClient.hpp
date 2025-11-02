@@ -15,8 +15,7 @@
 #include <string>
 #include <esp_http_client.h>
 #include "esp_log.h"
-
-#define JSON_NOEXCEPTION 1
+#include <memory>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
@@ -45,8 +44,8 @@ public:
      * @param header_value Optional custom header value (default: empty)
      * @return JSON object containing the parsed response, or empty JSON on error
      */
-    json get(const std::string& url, const std::string& header_key = "",
-             const std::string& header_value = "");
+    std::unique_ptr<json> get(const std::string& url, const std::string& header_key = "",
+                              const std::string& header_value = "");
 
     /**
      * @brief Perform a POST request and return parsed JSON response
@@ -59,10 +58,10 @@ public:
      * @param ignore_response If true, don't parse response as JSON (default: false)
      * @return JSON object containing the parsed response, or empty JSON if ignore_response is true or on error
      */
-    json post(const std::string& url, const std::string& header_key = "",
-              const std::string& header_value = "", std::string body = "",
-              const std::string& user = "", const std::string& password = "",
-              bool ignore_response = false);
+    std::unique_ptr<json> post(const std::string& url, const std::string& header_key = "",
+                               const std::string& header_value = "", std::string body = "",
+                               const std::string& user = "", const std::string& password = "",
+                               bool ignore_response = false);
 
     /**
      * @brief Perform a PUT request and return parsed JSON response
@@ -73,9 +72,9 @@ public:
      * @param ignore_response If true, don't parse response as JSON (default: false)
      * @return JSON object containing the parsed response, or empty JSON if ignore_response is true or on error
      */
-    json put(const std::string& url, const std::string& header_key = "",
-             const std::string& header_value = "", std::string body = "",
-             bool ignore_response = false);
+    std::unique_ptr<json> put(const std::string& url, const std::string& header_key = "",
+                              const std::string& header_value = "", std::string body = "",
+                              bool ignore_response = false);
 
     /**
      * @brief Set the logging level for HttpClient operations
@@ -84,17 +83,17 @@ public:
     void setLogLevel(esp_log_level_t level)
     {
         esp_log_level_set(TAG, level);
+        esp_log_level_set("http", level);
     }
 
 private:
     const char* TAG = "HttpClient"; ///< Log tag for ESP-IDF logging
 
-    static constexpr size_t BUFFER_SIZE = 10240; ///< Buffer size for HTTP response data
-
-    json performRequest(esp_http_client_method_t method, const std::string& url,
-                        const std::string& header_key, const std::string& header_value,
-                        const std::string& body, const std::string& user,
-                        const std::string& password, bool ignore_response);
+    std::unique_ptr<json> performRequest(esp_http_client_method_t method, const std::string& url,
+                                         const std::string& header_key,
+                                         const std::string& header_value, const std::string& body,
+                                         const std::string& user, const std::string& password,
+                                         bool ignore_response);
 
     /**
      * @brief Check if a string contains valid JSON format
