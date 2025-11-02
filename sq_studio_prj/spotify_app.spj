@@ -4874,7 +4874,7 @@
                       {
                         "nid": 10,
                         "strtype": "OBJECT/Name",
-                        "strval": "Queue Iten Container",
+                        "strval": "Queue Item Container",
                         "InheritedType": 10
                       },
                       {

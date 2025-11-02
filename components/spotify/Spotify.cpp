@@ -81,14 +81,14 @@ void Spotify::task()
 
                 case SpotifyActionType::Next:
                 {
-                    m_spotifyClient.post("me/player/next", "", false);
+                    m_spotifyClient.post("me/player/next", "", true);
                     updateCurrentlyPlaying();
                 }
                 break;
 
                 case SpotifyActionType::Previous:
                 {
-                    m_spotifyClient.post("me/player/previous", "", false);
+                    m_spotifyClient.post("me/player/previous", "", true);
                     updateCurrentlyPlaying();
                 }
                 break;

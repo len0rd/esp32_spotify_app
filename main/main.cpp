@@ -31,12 +31,10 @@ static Spotify&    sp  = Spotify::getInstance();
 
 std::string ms_to_min_sec(int ms)
 {
-    int  total_seconds = ms / 1000;
-    int  minutes       = total_seconds / 60;
-    int  seconds       = total_seconds % 60;
-    char buffer[10];
-    snprintf(buffer, sizeof(buffer), "%02d:%02d", minutes, seconds);
-    return std::string(buffer);
+    int total_seconds = ms / 1000;
+    int minutes       = total_seconds / 60;
+    int seconds       = total_seconds % 60;
+    return std::to_string(minutes) + ":" + std::to_string(seconds) + (seconds < 10 ? "0" : "");
 }
 
 const size_t ARC_MAX_VAL       = 1000;
@@ -206,11 +204,12 @@ extern "C" void app_main(void)
 
     display_init();
     ui_init();
-    lv_obj_add_event_cb(ui_Play_Button, ui_play_pause_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Skip_Forward_Btn, ui_next_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Skip_Back_Btn, ui_previous_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Shuffle_Btn, ui_shuffle_cb, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Play_Button, ui_play_pause_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Skip_Forward_Btn, ui_next_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Skip_Back_Btn, ui_previous_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Shuffle_Btn, ui_shuffle_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_RELEASED, NULL);
     user_encoder_init();
     xTaskCreate(ui_update_task, "ui_update_task", 8 * 1024, NULL, 5, NULL);
 
