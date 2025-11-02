@@ -18,7 +18,7 @@ extern lv_obj_t * ui_Queue_Container;
 extern lv_obj_t * ui_Queue_Title_Panel;
 extern lv_obj_t * ui_Queue_Title_Label;
 extern lv_obj_t * ui_Queue_Item_Panel;
-extern lv_obj_t * ui_Queue_Iten_Container;
+extern lv_obj_t * ui_Queue_Item_Container;
 extern lv_obj_t * ui_Queue_Item_Song_Label;
 extern lv_obj_t * ui_Queue_Item_Artist_Label;
 extern lv_obj_t * ui_Queue_Item_Move_Up_Btn;
