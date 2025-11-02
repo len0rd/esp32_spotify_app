@@ -156,10 +156,10 @@ static void ui_shuffle_cb(lv_event_t* e)
 
 static void ui_arc_cb(lv_event_t* e)
 {
-    lv_event_code_t code        = lv_event_get_code(e);
-    int             arc_value   = lv_arc_get_value(ui_Now_Playing_Arc);
-    int             position_ms = (int) ((float) arc_value / (float) ARC_MAX_VAL *
-                             (float) sp.getCurrentlyPlayingInfo().currentTrack.duration_ms);
+    lv_event_code_t code      = lv_event_get_code(e);
+    int             arc_value = lv_arc_get_value(ui_Now_Playing_Arc);
+    int             position_ms =
+        (arc_value * sp.getCurrentlyPlayingInfo().currentTrack.duration_ms) / ARC_MAX_VAL;
     // update time label while dragging
     std::string track_progress = ms_to_min_sec(position_ms);
     if (std::string(lv_label_get_text(ui_Song_Time_Played_Label)) != track_progress)

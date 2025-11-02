@@ -23,7 +23,7 @@ bool SpotifyClient::refreshToken()
 {
     auto response_ptr =
         httpClient.post(AUTH_URL, "Content-Type", "application/x-www-form-urlencoded",
-                        "grant_type=refresh_token&refresh_token=" + user1_refresh_token.get(),
+                        "grant_type=refresh_token&refresh_token=" + getRefreshToken(),
                         getClientId(), getClientSecret());
     trimJson(response_ptr);
     if (response_ptr)

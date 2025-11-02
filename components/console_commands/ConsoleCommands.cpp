@@ -43,14 +43,13 @@ esp_console_cmd_t reboot_cmd = {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // heap command:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-static const char* HEAP_TAG     = "HeapInfo";
-static size_t      initial_heap = 0;
-int                heapCmd(int argc, char** argv)
+static size_t initial_heap = 0;
+int           heapCmd(int argc, char** argv)
 {
     // print heap stats
-    size_t free_heap        = esp_get_free_heap_size();
-    float  heap_utilization = ((1.0f - (float) (initial_heap - free_heap) / initial_heap)) * 100.0f;
-    size_t min_free_heap    = esp_get_minimum_free_heap_size();
+    size_t free_heap          = esp_get_free_heap_size();
+    float  heap_utilization   = ((float) free_heap / initial_heap) * 100.0f;
+    size_t min_free_heap      = esp_get_minimum_free_heap_size();
     size_t largest_free_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
 
     printf(
