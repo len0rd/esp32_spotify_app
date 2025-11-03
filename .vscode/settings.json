@@ -18,4 +18,12 @@
   "idf.flashType": "UART",
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "xaver.clang-format",
+    "C_Cpp.default.includePath": [
+    "${workspaceFolder}/components/**",
+  ],
+  "C_Cpp.default.sourceFileMap": {
+    "/include": "${workspaceFolder}/src"
+  },
+  "C_Cpp.default.alternateFileExtensions": [".c", ".cpp", ".cc", ".h", ".hpp"],
+  "idf.useCmakeTools": false
 }

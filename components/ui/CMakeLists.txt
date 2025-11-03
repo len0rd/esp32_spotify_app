@@ -10,7 +10,7 @@ file(GLOB UI_SRCS
 idf_component_register(
     SRCS
         ${UI_SRCS}
-    PRIV_REQUIRES
+    REQUIRES
         lvgl
     INCLUDE_DIRS
         "generated/"

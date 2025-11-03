@@ -14,6 +14,7 @@
 
 #include <SpotifyClient.hpp>
 #include <vector>
+#include <SpotifyQueueItem.hpp>
 
 using json = nlohmann::json;
 
@@ -139,7 +140,7 @@ public:
      * @brief Start or resume playback
      * @return true if successful, false otherwise
      */
-    bool play();
+    bool play(std::string song_uri = "", std::string context_uri = "");
 
     /**
      * @brief Pause playback
@@ -215,11 +216,9 @@ public:
 
     /**
      * @brief Request the current playback queue
-     * @param index Starting index for the request
-     * @param limit Maximum number of tracks to retrieve
      * @return true if successful, false otherwise
      */
-    bool requestQueue(size_t index, size_t limit);
+    bool requestQueue();
 
     /**
      * @brief Update the currently playing track information
@@ -298,6 +297,7 @@ private:
     std::vector<TrackInfo> m_queue;                ///< Current playback queue
     std::vector<TrackInfo> m_recentlyPlayed;       ///< Recently played tracks
     bool                   m_verbose = false;      ///< Whether to log detailed information
+    std::vector<std::unique_ptr<SpotifyQueueItem>> m_songQueue;
 
     /**
      * @brief Get current system timestamp in milliseconds
@@ -344,7 +344,8 @@ private:
         ToggleShuffle,          ///< Toggle shuffle mode on/off
         SetRepeatMode,          ///< Set repeat mode
         UpdateCurrentlyPlaying, ///< Refresh currently playing track information
-        UpdatePlaybackState     ///< Refresh playback state information
+        UpdatePlaybackState,    ///< Refresh playback state information
+        GetQueue,               ///< Get current playback queue
     };
 
     /**
@@ -357,9 +358,19 @@ private:
      */
     struct SpotifyAction
     {
+        SpotifyAction() : type(SpotifyActionType::None), int_param(0), int_param2(0), verbose(false)
+        {
+        }
+        SpotifyAction(SpotifyActionType type, bool verbose)
+            : type{type}, int_param{0}, int_param2{0}, verbose{verbose}
+        {
+        }
         SpotifyActionType type;            ///< The type of action to perform
         std::string       str_param;       ///< String parameter (used for repeat mode, etc.)
+        std::string       context_uri;     ///< Context URI for play action
+        std::string       song_uri;        ///< Song URI for play action
         int               int_param;       ///< Integer parameter (used for volume level, etc.)
+        int               int_param2;      ///< Integer parameter (used for volume level, etc.)
         bool              verbose = false; ///< Whether to log detailed action information
 
         /**
@@ -392,6 +403,8 @@ private:
                     return "UpdateCurrentlyPlaying";
                 case SpotifyActionType::UpdatePlaybackState:
                     return "UpdatePlaybackState";
+                case SpotifyActionType::GetQueue:
+                    return "GetQueue";
                 default:
                     return "Unknown";
             }
@@ -403,8 +416,7 @@ private:
          */
         std::string toString()
         {
-            return "Action Type: " + std::string(actionToString()) + ", Str Param: " + str_param +
-                   ", Int Param: " + std::to_string(int_param);
+            return "Action Type: " + std::string(actionToString());
         }
     };
 };

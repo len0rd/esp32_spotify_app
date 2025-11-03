@@ -3,6 +3,7 @@ idf_component_register(
         "HttpClient.cpp"
         "SpotifyClient.cpp"
         "Spotify.cpp"
+        "SpotifyQueueItem.cpp"
     INCLUDE_DIRS
         "."
     REQUIRES
@@ -11,4 +12,5 @@ idf_component_register(
         nlohmann-json
         param
         wifi
+        ui
 )

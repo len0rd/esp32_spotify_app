@@ -1,31 +1,11 @@
 #include <SpotifyClient.hpp>
 
-// Remove large unused fields from JSON to save memory. This prevents out-of-memory errors.
-void trimJson(std::unique_ptr<json>& json_ptr)
-{
-    if (!json_ptr || json_ptr->is_discarded())
-    {
-        return;
-    }
-
-    if (json_ptr->contains("item") && (*json_ptr)["item"].contains("available_markets"))
-    {
-        (*json_ptr)["item"].erase("available_markets");
-    }
-    if (json_ptr->contains("item") && (*json_ptr)["item"].contains("album") &&
-        (*json_ptr)["item"]["album"].contains("available_markets"))
-    {
-        (*json_ptr)["item"]["album"].erase("available_markets");
-    }
-}
-
 bool SpotifyClient::refreshToken()
 {
     auto response_ptr =
         httpClient.post(AUTH_URL, "Content-Type", "application/x-www-form-urlencoded",
                         "grant_type=refresh_token&refresh_token=" + getRefreshToken(),
                         getClientId(), getClientSecret());
-    trimJson(response_ptr);
     if (response_ptr)
     {
         json& response = *response_ptr;
@@ -56,7 +36,6 @@ std::unique_ptr<json> SpotifyClient::get(const std::string& api_path)
     }
 
     auto ret_ptr = httpClient.get(BASE_URL + api_path, "Authorization", "Bearer " + getToken());
-    trimJson(ret_ptr);
     if (ret_ptr && ret_ptr->contains("error"))
     {
         json& ret = *ret_ptr;
@@ -103,7 +82,6 @@ std::unique_ptr<json> SpotifyClient::post(const std::string& api_path, std::stri
 
     auto ret_ptr = httpClient.post(BASE_URL + api_path, "Authorization", "Bearer " + getToken(),
                                    body, "", "", ignore_response);
-    trimJson(ret_ptr);
     if (ret_ptr && ret_ptr->contains("error"))
     {
         json& ret = *ret_ptr;
@@ -150,7 +128,6 @@ std::unique_ptr<json> SpotifyClient::put(const std::string& api_path, std::strin
 
     auto ret_ptr = httpClient.put(BASE_URL + api_path, "Authorization", "Bearer " + getToken(),
                                   body, ignore_response);
-    trimJson(ret_ptr);
     if (ret_ptr && ret_ptr->contains("error"))
     {
         json& ret = *ret_ptr;
