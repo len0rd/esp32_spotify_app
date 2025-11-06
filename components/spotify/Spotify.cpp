@@ -29,7 +29,11 @@ void Spotify::task()
     SpotifyAction* action;
     while (true)
     {
-        if (xQueueReceive(m_actionQueue, &action, pdMS_TO_TICKS(2000)) == pdPASS)
+        if (!is_wifi_connected())
+        {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+        else if (xQueueReceive(m_actionQueue, &action, pdMS_TO_TICKS(2000)) == pdPASS)
         {
             esp_log_level_t previous_level = esp_log_level_get(TAG);
             if (action->verbose)

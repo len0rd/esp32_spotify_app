@@ -11,6 +11,7 @@
 
 #include <SpotifyQueueItem.hpp>
 #include <Spotify.hpp>
+#include <display_init.h>
 
 void SpotifyQueueItem::song_queue_clicked_cb(lv_event_t* e)
 {
@@ -19,6 +20,7 @@ void SpotifyQueueItem::song_queue_clicked_cb(lv_event_t* e)
     if (data && code == LV_EVENT_CLICKED)
     {
         Spotify::getInstance().play(data->song_uri);
+        Spotify::getInstance().requestQueue();
     }
 }
 void SpotifyQueueItem::song_queue_up_clicked_cb(lv_event_t* e)
@@ -47,6 +49,10 @@ SpotifyQueueItem::SpotifyQueueItem(const std::string& song, const std::string& a
                                    const std::string& uri)
     : song_name(song), artist_name(artist), song_uri(uri)
 {
+    // assert(ui_sem && "bsp_display_start must be called first");
+    // xSemaphoreTake(ui_sem, portMAX_DELAY);
+    example_lvgl_lock(-1);
+
     queue_item_pannel = lv_obj_create(ui_Queue_Container);
     lv_obj_set_width(queue_item_pannel, 360);
     lv_obj_set_height(queue_item_pannel, 45);
@@ -130,13 +136,24 @@ SpotifyQueueItem::SpotifyQueueItem(const std::string& song, const std::string& a
     lv_obj_set_style_bg_color(move_down_btn, lv_color_hex(0xFFFFFF),
                               LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(move_down_btn, 150, LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_add_event_cb(move_up_btn, song_queue_up_clicked_cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(move_up_btn, song_queue_down_clicked_cb, LV_EVENT_CLICKED, this);
+
+    // xSemaphoreGive(ui_sem);
+    example_lvgl_unlock();
 }
 SpotifyQueueItem::~SpotifyQueueItem()
 {
+    example_lvgl_lock(-1);
+
+    // Remove all event callbacks first
+    lv_obj_remove_event_cb(queue_item_pannel, song_queue_clicked_cb);
+    lv_obj_remove_event_cb(move_up_btn, song_queue_up_clicked_cb);
+    lv_obj_remove_event_cb(move_down_btn, song_queue_down_clicked_cb);
     lv_obj_del(queue_item_pannel);
     song_name.clear();
     artist_name.clear();
+
+    example_lvgl_unlock();
 }
 void SpotifyQueueItem::setSongName(const std::string& name)
 {
