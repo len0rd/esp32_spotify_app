@@ -98,13 +98,31 @@ static void  ui_update_task(void* arg)
 
         if (std::string(lv_label_get_text(ui_Song_Label)) !=
             sp.getCurrentlyPlayingInfo().currentTrack.name)
+        {
             lv_label_set_text(ui_Song_Label,
                               sp.getCurrentlyPlayingInfo().currentTrack.name.c_str());
+        }
 
         if (std::string(lv_label_get_text(ui_Artist_Label)) !=
             sp.getCurrentlyPlayingInfo().currentTrack.artist)
+        {
             lv_label_set_text(ui_Artist_Label,
                               sp.getCurrentlyPlayingInfo().currentTrack.artist.c_str());
+        }
+
+        static bool prev_wifi_connected = false; // default to disconnected
+        if (is_wifi_connected() && !prev_wifi_connected)
+        {
+            lv_img_set_src(ui_Wifi_Indicator,
+                           &ui_img_wifi_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);
+            prev_wifi_connected = true;
+        }
+        else if (!is_wifi_connected() && prev_wifi_connected)
+        {
+            lv_img_set_src(ui_Wifi_Indicator,
+                           &ui_img_wifi_off_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);
+            prev_wifi_connected = false;
+        }
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
@@ -185,13 +203,15 @@ static void user_encoder_loop_task(void* arg)
         // counter-clockwise encoder tick
         if (READ_BIT(even, 0))
         {
-            sp.setVolume(std::max(0, sp.getPlaybackState().volume_percent - 5));
+            if (is_wifi_connected())
+                sp.setVolume(std::max(0, sp.getPlaybackState().volume_percent - 5));
         }
 
         // clockwise encoder tick
         if (READ_BIT(even, 1))
         {
-            sp.setVolume(std::min(100, sp.getPlaybackState().volume_percent + 5));
+            if (is_wifi_connected())
+                sp.setVolume(std::min(100, sp.getPlaybackState().volume_percent + 5));
         }
     }
 }
@@ -215,12 +235,13 @@ extern "C" void app_main(void)
 
     params::ParamMgr::getInstance().listAll();
 
+    xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
+
     // wait for wifi to connect
     while (!is_wifi_connected())
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
     sp.start_task();
     sp.updateCurrentlyPlaying();
     sp.updatePlaybackState();
