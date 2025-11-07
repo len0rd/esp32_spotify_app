@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <wifi.h>
+#include <display_init.h>
 
 void spotify_cmd_init();
 
@@ -117,7 +118,7 @@ void Spotify::task()
                                         "", true);
                     m_volumeCmdInProgress    = false;
                     m_lastVolumeChangeTimeMs = getCurrentTimestampMs();
-                    getPlaybackState();
+                    updatePlaybackState();
                 }
                 break;
 
@@ -438,9 +439,6 @@ void Spotify::task()
                     auto resp = m_spotifyClient.get(getPlaylistUrl);
                     if (resp && resp->contains("error") == false)
                     {
-                        if (action->int_param == 0)
-                            m_playlistItems.clear();
-
                         if (resp->contains("items") && (*resp)["items"].is_array())
                         {
                             for (auto& item : (*resp)["items"])

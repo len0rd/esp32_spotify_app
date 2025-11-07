@@ -60,6 +60,7 @@ static void ip_event_got_ip_handler(void* arg, esp_event_base_t event_base, int3
 {
     ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
     ESP_LOGI(TAG, "STA_GOT_IP:" IPSTR, IP2STR(&event->ip_info.ip));
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     s_wifiConnected = true;
 }
 

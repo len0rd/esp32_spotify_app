@@ -270,6 +270,11 @@ extern "C" void app_main(void)
     lv_obj_remove_event_cb(ui_Playlist_Panel, ui_event_Playlist_Panel);
     lv_obj_del(ui_Playlist_Panel);
     lv_obj_del(ui_Playlist_Item_Panel);
+
+    // adjust all scrollable containers to start at top
+    lv_obj_scroll_by(ui_Playlists_Container, 0, -100, LV_ANIM_OFF);
+    lv_obj_scroll_by(ui_Songs_Container, 0, -100, LV_ANIM_OFF);
+    lv_obj_scroll_by(ui_Queue_Container, 0, -100, LV_ANIM_OFF);
     ui_lvgl_unlock();
 
     // add event callbacks

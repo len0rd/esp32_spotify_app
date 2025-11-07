@@ -13,6 +13,8 @@
 #include <Spotify.hpp>
 #include <display_init.h>
 
+static bool everyOther = false;
+
 void SpotifyQueueItem::song_queue_clicked_cb(lv_event_t* e)
 {
     SpotifyQueueItem* data = static_cast<SpotifyQueueItem*>(lv_event_get_user_data(e));
@@ -136,6 +138,11 @@ SpotifyQueueItem::SpotifyQueueItem(const std::string& song, const std::string& a
     lv_obj_add_event_cb(queue_item_pannel, song_queue_clicked_cb, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(move_up_btn, song_queue_up_clicked_cb, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(move_down_btn, song_queue_down_clicked_cb, LV_EVENT_CLICKED, this);
+
+    // unscroll by the same amount as adding the new item
+    lv_obj_scroll_by(ui_Queue_Container, 0, 45 / 2 + (everyOther ? 1 : 0), LV_ANIM_OFF);
+    everyOther = !everyOther;
+
     ui_lvgl_unlock();
 }
 SpotifyQueueItem::~SpotifyQueueItem()
@@ -149,6 +156,10 @@ SpotifyQueueItem::~SpotifyQueueItem()
     lv_obj_del(queue_item_pannel);
     song_name.clear();
     artist_name.clear();
+
+    // unscroll by the same amount as adding the new item
+    everyOther = !everyOther;
+    lv_obj_scroll_by(ui_Queue_Container, 0, -45 / 2 - (everyOther ? 1 : 0), LV_ANIM_OFF);
 
     ui_lvgl_unlock();
 }

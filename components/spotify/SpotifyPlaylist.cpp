@@ -19,7 +19,14 @@ void SpotifyPlaylist::playlist_clicked_cb(lv_event_t* e)
 
     if (event_code == LV_EVENT_CLICKED)
     {
+        // return playlist screen to top
+        lv_obj_scroll_to_y(ui_Songs_Container, 0, LV_ANIM_OFF);
+        lv_obj_scroll_by(ui_Songs_Container, 0, -100, LV_ANIM_ON);
+
         Spotify::getInstance().requestPlaylist(playlist->playlist_uri);
+
+        // clear old playlist items
+        Spotify::getInstance().m_playlistItems.clear();
 
         lv_label_set_text(ui_Playlist_Title_Name_Label, playlist->playlist_name.c_str());
         _ui_screen_change(&ui_PlayList_Screen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0,
@@ -57,6 +64,9 @@ SpotifyPlaylist::SpotifyPlaylist(const std::string& name, const std::string& uri
 
     lv_obj_add_event_cb(playlist_pannel, playlist_clicked_cb, LV_EVENT_ALL, this);
 
+    // unscroll by the same amount as adding the new item
+    lv_obj_scroll_by(ui_Playlists_Container, 0, 50 / 2, LV_ANIM_OFF);
+
     ui_lvgl_unlock();
 }
 SpotifyPlaylist::~SpotifyPlaylist()
@@ -64,6 +74,9 @@ SpotifyPlaylist::~SpotifyPlaylist()
     ui_lvgl_lock(-1);
     lv_obj_remove_event_cb(playlist_pannel, playlist_clicked_cb);
     lv_obj_del(playlist_pannel);
+
+    // unscroll by the same amount as deleting the new item
+    lv_obj_scroll_by(ui_Playlists_Container, 0, -50 / 2, LV_ANIM_OFF);
     ui_lvgl_unlock();
 }
 void SpotifyPlaylist::setPlaylistName(const std::string& name)
