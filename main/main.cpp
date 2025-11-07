@@ -206,14 +206,14 @@ static void user_encoder_loop_task(void* arg)
         if (READ_BIT(even, 0))
         {
             if (is_wifi_connected())
-                sp.setVolume(std::max(0, sp.getPlaybackState().volume_percent - 5));
+                sp.changeVolume(-2);
         }
 
         // clockwise encoder tick
         if (READ_BIT(even, 1))
         {
             if (is_wifi_connected())
-                sp.setVolume(std::min(100, sp.getPlaybackState().volume_percent + 5));
+                sp.changeVolume(2);
         }
     }
 }

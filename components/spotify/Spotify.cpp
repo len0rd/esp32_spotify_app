@@ -113,8 +113,10 @@ void Spotify::task()
                     }
 
                     m_spotifyClient.put("me/player/volume?volume_percent=" +
-                                            std::to_string(action->int_param),
-                                        "", false);
+                                            std::to_string(m_desiredVolume),
+                                        "", true);
+                    m_volumeCmdInProgress    = false;
+                    m_lastVolumeChangeTimeMs = getCurrentTimestampMs();
                     getPlaybackState();
                 }
                 break;
@@ -191,6 +193,11 @@ void Spotify::task()
                             }
                             if ((*resp)["item"].contains("uri"))
                             {
+                                if (m_currentlyPlayingInfo.currentTrack.track_uri !=
+                                    std::string((*resp)["item"]["uri"]))
+                                {
+                                    requestQueue();
+                                }
                                 m_currentlyPlayingInfo.currentTrack.track_uri =
                                     std::string((*resp)["item"]["uri"]);
                             }
@@ -269,6 +276,25 @@ void Spotify::task()
                             {
                                 m_playbackState.volume_percent =
                                     (*resp)["device"]["volume_percent"];
+                                if (m_desiredVolume == -1)
+                                {
+                                    // first volume fetch, set desired volume to current
+                                    m_desiredVolume = m_playbackState.volume_percent;
+                                }
+                                else if (m_desiredVolume != m_playbackState.volume_percent &&
+                                         !m_volumeCmdInProgress)
+                                {
+                                    if (timeElapsedMs(m_lastVolumeChangeTimeMs) < 2000)
+                                    {
+                                        // Volume didn't fully update. Send another one.
+                                        queueSetVolume();
+                                    }
+                                    else
+                                    {
+                                        // external volume change detected. Update desired volume
+                                        m_desiredVolume = m_playbackState.volume_percent;
+                                    }
+                                }
                             }
                             // m_playbackState.supports_volume
                             if ((*resp)["device"].contains("supports_volume"))
@@ -399,7 +425,7 @@ void Spotify::task()
                     {
                         // Recently Played
                         getPlaylistUrl = "me/player/recently-played?limit=" +
-                                         std::to_string(std::min(action->int_param2, 100));
+                                         std::to_string(std::min(action->int_param2, 50));
                     }
                     else
                     {
@@ -551,10 +577,36 @@ bool Spotify::previous()
     SpotifyAction* action = new SpotifyAction{SpotifyActionType::Previous, m_verbose};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
+bool Spotify::changeVolume(int volumeDiff)
+{
+    return setVolume(m_desiredVolume + volumeDiff);
+}
 bool Spotify::setVolume(int volume)
 {
+    if (m_playbackState.supports_volume == false)
+    {
+        ESP_LOGI(TAG, "%s does not support volume adjustment", m_playbackState.device_name.c_str());
+        return false;
+    }
+
+    if (m_desiredVolume == -1)
+    {
+        ESP_LOGI(TAG, "Wait for first volume fetch before setting volume");
+        return false;
+    }
+
+    m_desiredVolume = std::max(0, std::min(100, volume));
+    if (m_volumeCmdInProgress)
+    {
+        // volume command already in the queue. Update the desired volume and skip adding another volume command to the queue.
+        return true;
+    }
+    return queueSetVolume();
+}
+bool Spotify::queueSetVolume()
+{
+    m_volumeCmdInProgress = true;
     SpotifyAction* action = new SpotifyAction{SpotifyActionType::SetVolume, m_verbose};
-    action->int_param     = volume;
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 bool Spotify::updateCurrentlyPlaying()

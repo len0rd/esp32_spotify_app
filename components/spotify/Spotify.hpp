@@ -17,6 +17,7 @@
 #include <SpotifyQueueItem.hpp>
 #include <SpotifyPlaylist.hpp>
 #include <SpotifyPlaylistItem.hpp>
+#include <atomic>
 
 using json = nlohmann::json;
 
@@ -181,6 +182,13 @@ public:
 
     /**
      * @brief Set the playback volume
+     * @param volumeDiff Amount to change the volume (-100 to 100)
+     * @return true if successful, false otherwise
+     */
+    bool changeVolume(int volumeDiff);
+
+    /**
+     * @brief Set the playback volume
      * @param volume Volume level (0-100)
      * @return true if successful, false otherwise
      */
@@ -247,7 +255,7 @@ public:
      * @param limit Maximum number of tracks to retrieve
      * @return true if successful, false otherwise
      */
-    bool requestPlaylist(std::string playlist_id, size_t offset = 0, size_t limit = 100);
+    bool requestPlaylist(std::string playlist_id, size_t offset = 0, size_t limit = 50);
 
     /**
      * @brief Update the currently playing track information
@@ -338,6 +346,10 @@ private:
     std::string                                       m_activePlaylistId;
     std::vector<std::unique_ptr<SpotifyPlaylistItem>> m_playlistItems;
 
+    std::atomic<bool> m_volumeCmdInProgress{false};
+    std::atomic<int>  m_desiredVolume{-1};
+    uint64_t          m_lastVolumeChangeTimeMs = 0;
+
     friend class SpotifyPlaylist;
     friend class SpotifyPlaylistItem;
     friend class SpotifyQueueItem;
@@ -351,8 +363,24 @@ private:
         return xTaskGetTickCount() * portTICK_PERIOD_MS;
     }
 
+    /**
+     * @brief Calculate elapsed time in milliseconds since a given start time
+     * @param startTimeMs Start time in milliseconds
+     * @return Elapsed time in milliseconds
+     */
+    static uint64_t timeElapsedMs(uint64_t startTimeMs)
+    {
+        return getCurrentTimestampMs() - startTimeMs;
+    }
+
     friend int spotify_cmd(int    argc,
                            char** argv); ///< Allow console command access to private members
+
+    /**
+     * @brief Queue a volume set action. This will automatically use the desired volume.
+     * @return True if the action was successfully queued, false otherwise
+     */
+    bool queueSetVolume();
 
     /**
      * @brief Main task function that processes Spotify actions from the queue
