@@ -21,6 +21,7 @@ void SpotifyPlaylist::playlist_clicked_cb(lv_event_t* e)
     {
         Spotify::getInstance().requestPlaylist(playlist->playlist_uri);
 
+        lv_label_set_text(ui_Playlist_Title_Name_Label, playlist->playlist_name.c_str());
         _ui_screen_change(&ui_PlayList_Screen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0,
                           &ui_PlayList_Screen_screen_init);
     }

@@ -51,7 +51,6 @@ static void wifi_event_disconnected_handler(void* arg, esp_event_base_t event_ba
 static void wifi_event_connected_handler(void* arg, esp_event_base_t event_base, int32_t event_id,
                                          void* event_data)
 {
-    s_wifiConnected = true;
     ESP_LOGI(TAG, "WIFI_EVENT_STA_CONNECTED");
     s_reconnect_times = 0;
 }
@@ -61,6 +60,7 @@ static void ip_event_got_ip_handler(void* arg, esp_event_base_t event_base, int3
 {
     ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
     ESP_LOGI(TAG, "STA_GOT_IP:" IPSTR, IP2STR(&event->ip_info.ip));
+    s_wifiConnected = true;
 }
 
 static int initialize_wifi(int argc, char** argv)

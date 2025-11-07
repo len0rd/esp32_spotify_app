@@ -42,8 +42,6 @@ SpotifyPlaylistItem::SpotifyPlaylistItem(const std::string& song, const std::str
                                          const std::string& uri)
     : song_name(song), artist_name(artist), song_uri(uri)
 {
-    // assert(ui_sem && "bsp_display_start must be called first");
-    // xSemaphoreTake(ui_sem, portMAX_DELAY);
     ui_lvgl_lock(-1);
 
     playlist_item_pannel = lv_obj_create(ui_Songs_Container);
@@ -114,7 +112,7 @@ SpotifyPlaylistItem::SpotifyPlaylistItem(const std::string& song, const std::str
 
     lv_obj_add_event_cb(playlist_item_pannel, song_clicked_cb, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(add_to_queue_btn, song_queue_add_clicked_cb, LV_EVENT_CLICKED, this);
-    // xSemaphoreGive(ui_sem);
+
     ui_lvgl_unlock();
 }
 SpotifyPlaylistItem::~SpotifyPlaylistItem()

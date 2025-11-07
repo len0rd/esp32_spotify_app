@@ -25,6 +25,9 @@
 #include "ConsoleCommands.h"
 #include "wifi.h"
 #include <Spotify.hpp>
+#include <atomic>
+
+static std::atomic<int> scroll_accumulator{0};
 
 static const char* TAG = "main";
 static Spotify&    sp  = Spotify::getInstance();
@@ -125,6 +128,21 @@ static void  ui_update_task(void* arg)
             prev_wifi_connected = false;
         }
 
+        // Apply scoll from encoder
+        lv_obj_t* act_scr = lv_scr_act();
+        if (scroll_accumulator != 0)
+        {
+            int scroll_amount  = scroll_accumulator.load();
+            scroll_accumulator = 0;
+
+            if (act_scr == ui_Playlists_Screen)
+                lv_obj_scroll_by(ui_Playlists_Container, 0, scroll_amount, LV_ANIM_ON);
+            else if (act_scr == ui_PlayList_Screen)
+                lv_obj_scroll_by(ui_Songs_Container, 0, scroll_amount, LV_ANIM_ON);
+            else if (act_scr == ui_Queue_Screen)
+                lv_obj_scroll_by(ui_Queue_Container, 0, scroll_amount, LV_ANIM_ON);
+        }
+
         ui_lvgl_unlock();
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
@@ -202,18 +220,37 @@ static void user_encoder_loop_task(void* arg)
         EventBits_t even =
             xEventGroupWaitBits(knob_even_, BIT_EVEN_ALL, pdTRUE, pdFALSE, pdMS_TO_TICKS(5000));
 
+        // get active screen lvgl object
+        lv_obj_t* act_scr = lv_scr_act();
+
         // counter-clockwise encoder tick
         if (READ_BIT(even, 0))
         {
-            if (is_wifi_connected())
+            // change volume only on Now Playing screen
+            if (is_wifi_connected() && (act_scr == ui_Now_Playing_Screen))
+            {
                 sp.changeVolume(-2);
+            }
+            else if (act_scr == ui_Playlists_Screen || act_scr == ui_PlayList_Screen ||
+                     act_scr == ui_Queue_Screen)
+            {
+                scroll_accumulator += 50;
+            }
         }
 
         // clockwise encoder tick
         if (READ_BIT(even, 1))
         {
-            if (is_wifi_connected())
+            // change volume only on Now Playing screen
+            if (is_wifi_connected() && (act_scr == ui_Now_Playing_Screen))
+            {
                 sp.changeVolume(2);
+            }
+            else if (act_scr == ui_Playlists_Screen || act_scr == ui_PlayList_Screen ||
+                     act_scr == ui_Queue_Screen)
+            {
+                scroll_accumulator -= 50;
+            }
         }
     }
 }
