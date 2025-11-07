@@ -25,6 +25,9 @@
 #include "ConsoleCommands.h"
 #include "wifi.h"
 #include <Spotify.hpp>
+#include <atomic>
+
+static std::atomic<int> scroll_accumulator{0};
 
 static const char* TAG = "main";
 static Spotify&    sp  = Spotify::getInstance();
@@ -49,6 +52,7 @@ static void  ui_update_task(void* arg)
 
     while (1)
     {
+        ui_lvgl_lock(-1);
         if (sp.isPlaying())
         {
             // set play button state to checked to display pause icon
@@ -98,14 +102,48 @@ static void  ui_update_task(void* arg)
 
         if (std::string(lv_label_get_text(ui_Song_Label)) !=
             sp.getCurrentlyPlayingInfo().currentTrack.name)
+        {
             lv_label_set_text(ui_Song_Label,
                               sp.getCurrentlyPlayingInfo().currentTrack.name.c_str());
+        }
 
         if (std::string(lv_label_get_text(ui_Artist_Label)) !=
             sp.getCurrentlyPlayingInfo().currentTrack.artist)
+        {
             lv_label_set_text(ui_Artist_Label,
                               sp.getCurrentlyPlayingInfo().currentTrack.artist.c_str());
+        }
 
+        static bool prev_wifi_connected = false; // default to disconnected
+        if (is_wifi_connected() && !prev_wifi_connected)
+        {
+            lv_img_set_src(ui_Wifi_Indicator,
+                           &ui_img_wifi_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);
+            prev_wifi_connected = true;
+        }
+        else if (!is_wifi_connected() && prev_wifi_connected)
+        {
+            lv_img_set_src(ui_Wifi_Indicator,
+                           &ui_img_wifi_off_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png);
+            prev_wifi_connected = false;
+        }
+
+        // Apply scoll from encoder
+        lv_obj_t* act_scr = lv_scr_act();
+        if (scroll_accumulator != 0)
+        {
+            int scroll_amount  = scroll_accumulator.load();
+            scroll_accumulator = 0;
+
+            if (act_scr == ui_Playlists_Screen)
+                lv_obj_scroll_by(ui_Playlists_Container, 0, scroll_amount, LV_ANIM_ON);
+            else if (act_scr == ui_PlayList_Screen)
+                lv_obj_scroll_by(ui_Songs_Container, 0, scroll_amount, LV_ANIM_ON);
+            else if (act_scr == ui_Queue_Screen)
+                lv_obj_scroll_by(ui_Queue_Container, 0, scroll_amount, LV_ANIM_ON);
+        }
+
+        ui_lvgl_unlock();
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 }
@@ -182,16 +220,37 @@ static void user_encoder_loop_task(void* arg)
         EventBits_t even =
             xEventGroupWaitBits(knob_even_, BIT_EVEN_ALL, pdTRUE, pdFALSE, pdMS_TO_TICKS(5000));
 
+        // get active screen lvgl object
+        lv_obj_t* act_scr = lv_scr_act();
+
         // counter-clockwise encoder tick
         if (READ_BIT(even, 0))
         {
-            sp.setVolume(std::max(0, sp.getPlaybackState().volume_percent - 5));
+            // change volume only on Now Playing screen
+            if (is_wifi_connected() && (act_scr == ui_Now_Playing_Screen))
+            {
+                sp.changeVolume(-2);
+            }
+            else if (act_scr == ui_Playlists_Screen || act_scr == ui_PlayList_Screen ||
+                     act_scr == ui_Queue_Screen)
+            {
+                scroll_accumulator += 50;
+            }
         }
 
         // clockwise encoder tick
         if (READ_BIT(even, 1))
         {
-            sp.setVolume(std::min(100, sp.getPlaybackState().volume_percent + 5));
+            // change volume only on Now Playing screen
+            if (is_wifi_connected() && (act_scr == ui_Now_Playing_Screen))
+            {
+                sp.changeVolume(2);
+            }
+            else if (act_scr == ui_Playlists_Screen || act_scr == ui_PlayList_Screen ||
+                     act_scr == ui_Queue_Screen)
+            {
+                scroll_accumulator -= 50;
+            }
         }
     }
 }
@@ -204,14 +263,27 @@ extern "C" void app_main(void)
 
     display_init();
     ui_init();
+
+    // remove dummy list items created by ui generator
+    ui_lvgl_lock(-1);
+    lv_obj_del(ui_Queue_Item_Panel);
+    lv_obj_remove_event_cb(ui_Playlist_Panel, ui_event_Playlist_Panel);
+    lv_obj_del(ui_Playlist_Panel);
+    lv_obj_del(ui_Playlist_Item_Panel);
+    ui_lvgl_unlock();
+
+    // add event callbacks
     lv_obj_add_event_cb(ui_Play_Button, ui_play_pause_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Skip_Forward_Btn, ui_next_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Skip_Back_Btn, ui_previous_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Shuffle_Btn, ui_shuffle_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_PRESSED, NULL);
     lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_RELEASED, NULL);
+
+    // initialize user encoder
     user_encoder_init();
     xTaskCreate(ui_update_task, "ui_update_task", 8 * 1024, NULL, 5, NULL);
+    xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
 
     params::ParamMgr::getInstance().listAll();
 
@@ -220,10 +292,12 @@ extern "C" void app_main(void)
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
+    // start spotify
     sp.start_task();
     sp.updateCurrentlyPlaying();
     sp.updatePlaybackState();
+    sp.requestQueue();
+    sp.requestPlaylists();
 
     while (1)
         vTaskSuspend(NULL);

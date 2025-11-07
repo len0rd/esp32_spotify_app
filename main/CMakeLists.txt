@@ -1,7 +1,6 @@
 idf_component_register(
     SRCS
         "main.cpp"
-        "display_init.cpp"
     INCLUDE_DIRS
         "."
     )

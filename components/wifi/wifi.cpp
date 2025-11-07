@@ -20,6 +20,7 @@
 
 params::Param<std::string>      s_ssid{"wifi_ssid", std::string("")};
 params::Param<params::password> s_password{"wifi_password", params::password("")};
+static bool                     s_wifiConnected = false;
 
 #define MAX_RECONNECT_TIMES (5)
 
@@ -35,6 +36,7 @@ static void wifi_event_any_handler(void* arg, esp_event_base_t event_base, int32
 static void wifi_event_disconnected_handler(void* arg, esp_event_base_t event_base,
                                             int32_t event_id, void* event_data)
 {
+    s_wifiConnected = false;
     ESP_LOGI(TAG, "WIFI_EVENT_STA_DISCONNECTED");
     if (s_reconnect_times++ < MAX_RECONNECT_TIMES)
     {
@@ -58,6 +60,7 @@ static void ip_event_got_ip_handler(void* arg, esp_event_base_t event_base, int3
 {
     ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
     ESP_LOGI(TAG, "STA_GOT_IP:" IPSTR, IP2STR(&event->ip_info.ip));
+    s_wifiConnected = true;
 }
 
 static int initialize_wifi(int argc, char** argv)
@@ -338,17 +341,18 @@ void espwifi_Init(void)
 
 bool is_wifi_connected()
 {
-    wifi_ap_record_t ap_info;
-    esp_err_t        ret = esp_wifi_sta_get_ap_info(&ap_info);
-    return (ret == ESP_OK);
+    return s_wifiConnected;
 }
 int get_wifi_rssi()
 {
-    wifi_ap_record_t ap_info;
-    esp_err_t        ret = esp_wifi_sta_get_ap_info(&ap_info);
-    if (ret == ESP_OK)
+    if (is_wifi_connected())
     {
-        return ap_info.rssi;
+        wifi_ap_record_t ap_info;
+        esp_err_t        ret = esp_wifi_sta_get_ap_info(&ap_info);
+        if (ret == ESP_OK)
+        {
+            return ap_info.rssi;
+        }
     }
     return 0;
 }

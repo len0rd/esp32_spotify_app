@@ -9,10 +9,16 @@ file(GLOB UI_SRCS
 
 idf_component_register(
     SRCS
+        "display_init.cpp"
         ${UI_SRCS}
-    PRIV_REQUIRES
+    REQUIRES
         lvgl
+        lcd_touch_bsp
+        esp_lcd_sh8601
+        i2c_bsp
+        lcd_bl_pwm_bsp
     INCLUDE_DIRS
+        "."
         "generated/"
         "generated/components/"
         "generated/fonts/"

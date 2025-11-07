@@ -11,7 +11,7 @@ SET(SOURCES screens/ui_Now_Playing_Screen.c
     ui_helpers.c
     images/ui_img_1151404881.c
     images/ui_img_wifi_off_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png.c
-    images/ui_img_battery_android_0_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png.c
+    images/ui_img_wifi_30dp_e3e3e3_fill0_wght400_grad0_opsz24_png.c
     images/ui_img_play_arrow_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png.c
     images/ui_img_pause_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png.c
     images/ui_img_skip_next_40dp_e3e3e3_fill0_wght400_grad0_opsz40_png.c

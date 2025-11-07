@@ -5,18 +5,6 @@
 #include "freertos/task.h"
 #include <wifi.h>
 
-// Manually clear JSON object before letting unique_ptr go out of scope. For some reason this seems to prevent errors.
-void deleteJson(std::unique_ptr<json>& json_ptr)
-{
-    if (!json_ptr || json_ptr->is_discarded())
-        return;
-
-    for (auto it = json_ptr->begin(); it != json_ptr->end();)
-    {
-        it = json_ptr->erase(it);
-    }
-}
-
 void spotify_cmd_init();
 
 Spotify::Spotify()
@@ -27,44 +15,55 @@ Spotify::Spotify()
 Spotify::~Spotify() {}
 void Spotify::start_task()
 {
-    m_actionQueue = xQueueCreate(10, sizeof(SpotifyAction)); // 10 pending actions
+    m_actionQueue = xQueueCreate(100, sizeof(SpotifyAction*)); // 100 pending actions
     if (m_actionQueue == nullptr)
     {
         ESP_LOGE(TAG, "Failed to create Spotify action queue");
         return;
     }
-    xTaskCreate([](void* obj) { static_cast<Spotify*>(obj)->task(); }, "spotifyTask", 5 * 1024,
+    xTaskCreate([](void* obj) { static_cast<Spotify*>(obj)->task(); }, "spotifyTask", 10 * 1024,
                 this, 5, &m_task);
 }
 void Spotify::task()
 {
-    SpotifyAction action;
-
+    m_playlists.push_back(
+        std::make_unique<SpotifyPlaylist>("Liked Songs", "spotify:collection:liked"));
+    m_playlists.push_back(
+        std::make_unique<SpotifyPlaylist>("Recently Played", "spotify:collection:recently_played"));
+    SpotifyAction* action;
     while (true)
     {
-        if (xQueueReceive(m_actionQueue, &action, pdMS_TO_TICKS(2000)) == pdPASS)
+        if (!is_wifi_connected())
+        {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+        else if (xQueueReceive(m_actionQueue, &action, pdMS_TO_TICKS(2000)) == pdPASS)
         {
             esp_log_level_t previous_level = esp_log_level_get(TAG);
-            if (action.verbose)
+            if (action->verbose)
             {
                 setLogLevel(ESP_LOG_INFO);
             }
-            ESP_LOGI(TAG, "Processing Spotify action: %s", action.toString().c_str());
-            switch (action.type)
+            ESP_LOGI(TAG, "Processing Spotify action: %s", action->toString().c_str());
+            switch (action->type)
             {
                 case SpotifyActionType::Play:
                 {
-                    std::string body = "{\"context_uri\":\"" + m_currentlyPlayingInfo.context_uri +
-                                       "\", \"offset\":{\"uri\":\"" +
-                                       m_currentlyPlayingInfo.currentTrack.track_uri +
-                                       "\"}, \"position_ms\":" +
-                                       std::to_string(m_currentlyPlayingInfo.progress_ms) + "}";
-                    auto resp = m_spotifyClient.put("me/player/play", body, true);
+                    json body = {{"context_uri", action->context_uri.empty()
+                                                     ? m_currentlyPlayingInfo.context_uri
+                                                     : action->context_uri},
+                                 {"offset",
+                                  {{"uri", action->song_uri.empty()
+                                               ? m_currentlyPlayingInfo.currentTrack.track_uri
+                                               : action->song_uri}}},
+                                 {"position_ms", action->song_uri.empty()
+                                                     ? m_currentlyPlayingInfo.progress_ms
+                                                     : 0}};
+                    auto resp = m_spotifyClient.put("me/player/play", body.dump(), true);
                     if (resp && resp->contains("error") == false)
                     {
                         m_playbackState.is_playing = true;
                     }
-                    deleteJson(resp);
                 }
                 break;
 
@@ -75,7 +74,6 @@ void Spotify::task()
                     {
                         m_playbackState.is_playing = false;
                     }
-                    deleteJson(resp);
                 }
                 break;
 
@@ -95,13 +93,13 @@ void Spotify::task()
 
                 case SpotifyActionType::Seek:
                 {
-                    auto resp = m_spotifyClient.put(
-                        "me/player/seek?position_ms=" + std::to_string(action.int_param), "", true);
+                    auto resp = m_spotifyClient.put("me/player/seek?position_ms=" +
+                                                        std::to_string(action->int_param),
+                                                    "", true);
                     if (resp && resp->contains("error") == false)
                     {
-                        m_currentlyPlayingInfo.progress_ms = action.int_param;
+                        m_currentlyPlayingInfo.progress_ms = action->int_param;
                     }
-                    deleteJson(resp);
                 }
                 break;
 
@@ -115,8 +113,10 @@ void Spotify::task()
                     }
 
                     m_spotifyClient.put("me/player/volume?volume_percent=" +
-                                            std::to_string(action.int_param),
-                                        "", false);
+                                            std::to_string(m_desiredVolume),
+                                        "", true);
+                    m_volumeCmdInProgress    = false;
+                    m_lastVolumeChangeTimeMs = getCurrentTimestampMs();
                     getPlaybackState();
                 }
                 break;
@@ -133,7 +133,7 @@ void Spotify::task()
 
                 case SpotifyActionType::SetRepeatMode:
                 {
-                    std::string mode = action.str_param;
+                    std::string mode = action->str_param;
                     if (mode != "off" && mode != "context" && mode != "track")
                     {
                         ESP_LOGE(TAG, "Invalid repeat mode: %s", mode.c_str());
@@ -193,6 +193,11 @@ void Spotify::task()
                             }
                             if ((*resp)["item"].contains("uri"))
                             {
+                                if (m_currentlyPlayingInfo.currentTrack.track_uri !=
+                                    std::string((*resp)["item"]["uri"]))
+                                {
+                                    requestQueue();
+                                }
                                 m_currentlyPlayingInfo.currentTrack.track_uri =
                                     std::string((*resp)["item"]["uri"]);
                             }
@@ -219,7 +224,6 @@ void Spotify::task()
                     {
                         ESP_LOGE(TAG, "Failed to get currently playing track");
                     }
-                    deleteJson(resp);
                 }
                 break;
 
@@ -272,6 +276,25 @@ void Spotify::task()
                             {
                                 m_playbackState.volume_percent =
                                     (*resp)["device"]["volume_percent"];
+                                if (m_desiredVolume == -1)
+                                {
+                                    // first volume fetch, set desired volume to current
+                                    m_desiredVolume = m_playbackState.volume_percent;
+                                }
+                                else if (m_desiredVolume != m_playbackState.volume_percent &&
+                                         !m_volumeCmdInProgress)
+                                {
+                                    if (timeElapsedMs(m_lastVolumeChangeTimeMs) < 2000)
+                                    {
+                                        // Volume didn't fully update. Send another one.
+                                        queueSetVolume();
+                                    }
+                                    else
+                                    {
+                                        // external volume change detected. Update desired volume
+                                        m_desiredVolume = m_playbackState.volume_percent;
+                                    }
+                                }
                             }
                             // m_playbackState.supports_volume
                             if ((*resp)["device"].contains("supports_volume"))
@@ -287,17 +310,202 @@ void Spotify::task()
                     {
                         ESP_LOGE(TAG, "Failed to get currently playing track");
                     }
-                    deleteJson(resp);
+                }
+                break;
+
+                case SpotifyActionType::GetQueue:
+                {
+                    auto resp = m_spotifyClient.get("me/player/queue");
+
+                    if (resp && resp->contains("error") == false)
+                    {
+                        if (resp->contains("queue") && (*resp)["queue"].is_array())
+                        {
+                            size_t i = 0;
+
+                            for (auto& item : (*resp)["queue"])
+                            {
+                                if (item.contains("name") && item.contains("artists") &&
+                                    item["artists"].is_array() && !item["artists"].empty() &&
+                                    item.contains("uri"))
+                                {
+                                    // Remove bulky fields
+                                    if (item.contains("album") &&
+                                        item["album"].contains("available_markets"))
+                                        item["album"].erase("available_markets");
+                                    if (item.contains("available_markets"))
+                                        item.erase("available_markets");
+
+                                    std::string artist_name =
+                                        item["artists"][0]["name"].get<std::string>();
+                                    std::string song_name = item["name"].get<std::string>();
+                                    std::string uri       = item["uri"].get<std::string>();
+
+                                    // --- Match and reconcile logic ---
+                                    bool matched = false;
+
+                                    // While we have items and current one doesn’t match, erase it
+                                    while (i < m_songQueue.size())
+                                    {
+                                        if (m_songQueue[i]->song_uri == uri)
+                                        {
+                                            matched = true;
+                                            break;
+                                        }
+                                        else
+                                        {
+                                            m_songQueue.erase(m_songQueue.begin() + i);
+                                            // Do NOT increment i, because erase shifts elements left
+                                        }
+                                    }
+
+                                    // If we didn’t find a match, this is a new song → append it
+                                    if (!matched)
+                                    {
+                                        m_songQueue.push_back(std::make_unique<SpotifyQueueItem>(
+                                            song_name, artist_name, uri));
+                                    }
+
+                                    // Move to the next position
+                                    i++;
+                                }
+                            }
+
+                            // Remove any extra trailing items beyond the new queue length
+                            if (i < m_songQueue.size())
+                            {
+                                m_songQueue.erase(m_songQueue.begin() + i, m_songQueue.end());
+                            }
+                        }
+                    }
+                }
+                break;
+
+                case SpotifyActionType::GetPlaylists:
+                {
+                    auto get_resp = m_spotifyClient.get(
+                        "me/playlists?limit=" + std::to_string(action->int_param2) +
+                        "&offset=" + std::to_string(action->int_param));
+
+                    if (get_resp && get_resp->contains("error") == false)
+                    {
+                        if (get_resp->contains("items") && (*get_resp)["items"].is_array())
+                        {
+                            // erase all but the first two playlists (Liked Songs and Recently Played)
+                            m_playlists.erase(m_playlists.begin() + 2, m_playlists.end());
+                            for (auto& item : (*get_resp)["items"])
+                            {
+                                if (item.contains("name") && item.contains("id"))
+                                {
+                                    std::string name = item["name"].get<std::string>();
+                                    std::string id   = item["id"].get<std::string>();
+                                    ESP_LOGI(TAG, "Found playlist: %s (ID: %s)", name.c_str(),
+                                             id.c_str());
+                                    m_playlists.push_back(
+                                        std::make_unique<SpotifyPlaylist>(name, id));
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+
+                case SpotifyActionType::GetPlaylist:
+                {
+                    std::string getPlaylistUrl;
+
+                    if (action->str_param.find("spotify:collection:liked") != std::string::npos)
+                    {
+                        // Liked Songs
+                        getPlaylistUrl = "me/tracks?limit=" + std::to_string(action->int_param2) +
+                                         "&offset=" + std::to_string(action->int_param);
+                    }
+                    else if (action->str_param.find("spotify:collection:recently_played") !=
+                             std::string::npos)
+                    {
+                        // Recently Played
+                        getPlaylistUrl = "me/player/recently-played?limit=" +
+                                         std::to_string(std::min(action->int_param2, 50));
+                    }
+                    else
+                    {
+                        // Regular playlist
+                        getPlaylistUrl = "playlists/" + action->str_param +
+                                         "/tracks?limit=" + std::to_string(action->int_param2) +
+                                         "&offset=" + std::to_string(action->int_param);
+                    }
+
+                    auto resp = m_spotifyClient.get(getPlaylistUrl);
+                    if (resp && resp->contains("error") == false)
+                    {
+                        if (action->int_param == 0)
+                            m_playlistItems.clear();
+
+                        if (resp->contains("items") && (*resp)["items"].is_array())
+                        {
+                            for (auto& item : (*resp)["items"])
+                            {
+                                if (item.contains("track"))
+                                {
+                                    auto& track = item["track"];
+                                    if (track.contains("name") && track.contains("artists") &&
+                                        track["artists"].is_array() && !track["artists"].empty() &&
+                                        track.contains("uri"))
+                                    {
+                                        std::string artist_name =
+                                            track["artists"][0]["name"].get<std::string>();
+                                        std::string song_name = track["name"].get<std::string>();
+                                        std::string uri       = track["uri"].get<std::string>();
+                                        ESP_LOGI(TAG, "Playlist Item: %s by %s (URI: %s)",
+                                                 song_name.c_str(), artist_name.c_str(),
+                                                 uri.c_str());
+                                        m_playlistItems.push_back(
+                                            std::make_unique<SpotifyPlaylistItem>(
+                                                song_name, artist_name, uri));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+
+                case SpotifyActionType::GetUserInfo:
+                {
+                    auto resp = m_spotifyClient.get("me");
+                    if (resp && resp->contains("error") == false)
+                    {
+                        if (resp->contains("display_name"))
+                        {
+                            m_userInfo.display_name = (*resp)["display_name"];
+                        }
+                        if (resp->contains("id"))
+                        {
+                            m_userInfo.user_id = (*resp)["id"];
+                        }
+                    }
+                }
+                break;
+
+                case SpotifyActionType::AddToQueue:
+                {
+                    auto resp =
+                        m_spotifyClient.post("me/player/queue?uri=" + action->str_param, "", true);
+                    if (resp && resp->contains("error") == false)
+                    {
+                        ESP_LOGI(TAG, "Added to queue: %s", action->str_param.c_str());
+                    }
                 }
                 break;
 
                 default:
                     break;
             }
-            if (action.verbose)
+            if (action->verbose)
             {
                 setLogLevel(previous_level);
             }
+            delete action;
         }
         else
         {
@@ -349,14 +557,14 @@ int Spotify::getTrackProgress_ms()
 bool Spotify::pause()
 {
     updateCurrentlyPlaying();
-    SpotifyAction action = {SpotifyActionType::Pause, "", 0, m_verbose};
-    bool          ret    = xQueueSend(m_actionQueue, &action, 0) == pdPASS;
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::Pause, m_verbose};
+    bool           ret    = xQueueSend(m_actionQueue, &action, 0) == pdPASS;
     updatePlaybackState();
     return ret;
 }
 bool Spotify::next()
 {
-    SpotifyAction action = {SpotifyActionType::Next, "", 0, m_verbose};
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::Next, m_verbose};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 bool Spotify::previous()
@@ -366,45 +574,76 @@ bool Spotify::previous()
     {
         return seek(0);
     }
-    SpotifyAction action = {SpotifyActionType::Previous, "", 0, m_verbose};
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::Previous, m_verbose};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
+}
+bool Spotify::changeVolume(int volumeDiff)
+{
+    return setVolume(m_desiredVolume + volumeDiff);
 }
 bool Spotify::setVolume(int volume)
 {
-    SpotifyAction action = {SpotifyActionType::SetVolume, "", volume, m_verbose};
+    if (m_playbackState.supports_volume == false)
+    {
+        ESP_LOGI(TAG, "%s does not support volume adjustment", m_playbackState.device_name.c_str());
+        return false;
+    }
+
+    if (m_desiredVolume == -1)
+    {
+        ESP_LOGI(TAG, "Wait for first volume fetch before setting volume");
+        return false;
+    }
+
+    m_desiredVolume = std::max(0, std::min(100, volume));
+    if (m_volumeCmdInProgress)
+    {
+        // volume command already in the queue. Update the desired volume and skip adding another volume command to the queue.
+        return true;
+    }
+    return queueSetVolume();
+}
+bool Spotify::queueSetVolume()
+{
+    m_volumeCmdInProgress = true;
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::SetVolume, m_verbose};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 bool Spotify::updateCurrentlyPlaying()
 {
-    SpotifyAction action = {SpotifyActionType::UpdateCurrentlyPlaying, "", 0, m_verbose};
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::UpdateCurrentlyPlaying, m_verbose};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
-bool Spotify::play()
+bool Spotify::play(std::string song_uri, std::string context_uri)
 {
-    SpotifyAction action = {SpotifyActionType::Play, "", 0, m_verbose};
-    bool          ret    = xQueueSend(m_actionQueue, &action, 0) == pdPASS;
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::Play, m_verbose};
+    action->song_uri      = song_uri;
+    action->context_uri   = context_uri;
+    bool ret              = xQueueSend(m_actionQueue, &action, 0) == pdPASS;
     updateCurrentlyPlaying();
     updatePlaybackState();
     return ret;
 }
 bool Spotify::updatePlaybackState()
 {
-    SpotifyAction action = {SpotifyActionType::UpdatePlaybackState, "", 0, m_verbose};
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::UpdatePlaybackState, m_verbose};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 bool Spotify::toggleShuffle()
 {
-    SpotifyAction action = {SpotifyActionType::ToggleShuffle, "", 0, m_verbose};
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::ToggleShuffle, m_verbose};
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 bool Spotify::setRepeatMode(const std::string& mode)
 {
-    SpotifyAction action = {SpotifyActionType::SetRepeatMode, mode, 0, m_verbose};
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::SetRepeatMode, m_verbose};
+    action->str_param     = mode;
     return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 bool Spotify::seek(int position_ms)
 {
-    SpotifyAction action = {SpotifyActionType::Seek, "", position_ms, m_verbose};
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::Seek, m_verbose};
+    action->int_param     = position_ms;
     if (xQueueSend(m_actionQueue, &action, 0) == pdPASS)
     {
         getCurrentlyPlayingInfo().progress_ms = position_ms;
@@ -412,17 +651,46 @@ bool Spotify::seek(int position_ms)
     }
     return false;
 }
-bool Spotify::addToQueue(const TrackInfo&)
+bool Spotify::addToQueue(std::string uri)
 {
-    return false;
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::AddToQueue, m_verbose};
+    action->str_param     = uri;
+    return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
-bool Spotify::reqeustRecentlyPlayed(size_t index, size_t limit)
+bool Spotify::requestQueue()
 {
-    return false;
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::GetQueue, m_verbose};
+    return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
-bool Spotify::requestQueue(size_t index, size_t limit)
+bool Spotify::requestPlaylists(size_t offset, size_t limit)
 {
-    return false;
+    if (m_userInfo.user_id.empty())
+    {
+        requestUserInfo();
+    }
+
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::GetPlaylists, m_verbose};
+    action->int_param     = offset;
+    action->int_param2    = limit;
+    return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
+}
+bool Spotify::requestPlaylist(std::string playlist_id, size_t offset, size_t limit)
+{
+    if (m_userInfo.user_id.empty())
+    {
+        requestUserInfo();
+    }
+
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::GetPlaylist, m_verbose};
+    action->str_param     = playlist_id;
+    action->int_param     = offset;
+    action->int_param2    = limit;
+    return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
+}
+bool Spotify::requestUserInfo()
+{
+    SpotifyAction* action = new SpotifyAction{SpotifyActionType::GetUserInfo, m_verbose};
+    return xQueueSend(m_actionQueue, &action, 0) == pdPASS;
 }
 std::string Spotify::TrackInfo::toString()
 {
@@ -461,8 +729,8 @@ int spotify_cmd(int argc, char** argv);
 const char* SPOTIFY_USAGE_STRING = "Spotify command usage:\n"
                                    "  spotify <action>\n"
                                    "    action: 'play', 'pause', 'next', 'previous', 'status', "
-                                   "'shuffle', 'update', 'refreshToken', "
-                                   "'repeat'\n";
+                                   "'shuffle', 'update', 'getQueue', 'refreshToken', 'userInfo', "
+                                   "'getPlaylists', 'repeat'\n";
 static struct
 {
     struct arg_str* action;
@@ -481,10 +749,11 @@ static esp_console_cmd_t s_spotify_cmd_struct{
 void spotify_cmd_init()
 {
     // s_spotify_cmd_args = (decltype(s_spotify_cmd_args)) calloc(1, sizeof(*s_spotify_cmd_args));
-    s_spotify_cmd_args.action = arg_str1(NULL, NULL, "<action>",
-                                         "'play', 'pause', 'next', 'previous', "
-                                         "'status', 'shuffle', 'repeat'");
-    s_spotify_cmd_args.end    = arg_end(2);
+    s_spotify_cmd_args.action =
+        arg_str1(NULL, NULL, "<action>",
+                 "action: 'play', 'pause', 'next', 'previous', 'status', 'shuffle', 'update', "
+                 "'getQueue', 'refreshToken', 'userInfo', 'getPlaylists', 'repeat'");
+    s_spotify_cmd_args.end = arg_end(2);
 
     ESP_ERROR_CHECK(esp_console_cmd_register(&s_spotify_cmd_struct));
 }
@@ -527,6 +796,10 @@ int spotify_cmd(int argc, char** argv)
     {
         sp.toggleShuffle();
     }
+    else if (strcmp(action, "getQueue") == 0)
+    {
+        sp.requestQueue();
+    }
     else if (strcmp(action, "update") == 0)
     {
         sp.updateCurrentlyPlaying();
@@ -535,6 +808,14 @@ int spotify_cmd(int argc, char** argv)
     else if (strcmp(action, "refreshToken") == 0)
     {
         sp.refreshToken();
+    }
+    else if (strcmp(action, "userInfo") == 0)
+    {
+        sp.requestUserInfo();
+    }
+    else if (strcmp(action, "getPlaylists") == 0)
+    {
+        sp.requestPlaylists();
     }
     else if (strcmp(action, "repeat") == 0)
     {

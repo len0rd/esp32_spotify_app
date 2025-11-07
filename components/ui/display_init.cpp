@@ -2,11 +2,7 @@
 // WaveShare's examples for the ESP32-S3 KNOB LCD module.
 // https://www.waveshare.com/wiki/ESP32-S3-Knob-Touch-LCD-1.8#Working_with_ESP-IDF
 
-#include <stdio.h>
-#include <inttypes.h>
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include <display_init.h>
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_panel_ops.h"
@@ -25,8 +21,7 @@
 #include "user_config.h"
 #include "lcd_bl_pwm_bsp.h"
 
-static const char*       TAG      = "display_init";
-static SemaphoreHandle_t lvgl_mux = NULL;
+static const char* TAG = "display_init";
 
 #if CONFIG_LV_COLOR_DEPTH == 32
 #define LCD_BIT_PER_PIXEL (24)
@@ -323,18 +318,20 @@ static void example_increase_lvgl_tick(void* arg)
     lv_tick_inc(EXAMPLE_LVGL_TICK_PERIOD_MS);
 }
 
-static bool example_lvgl_lock(int timeout_ms)
+static SemaphoreHandle_t ui_sem = NULL;
+
+bool ui_lvgl_lock(int timeout_ms)
 {
-    assert(lvgl_mux && "bsp_display_start must be called first");
+    assert(ui_sem && "bsp_display_start must be called first");
 
     const TickType_t timeout_ticks = (timeout_ms == -1) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
-    return xSemaphoreTake(lvgl_mux, timeout_ticks) == pdTRUE;
+    return xSemaphoreTake(ui_sem, timeout_ticks) == pdTRUE;
 }
 
-static void example_lvgl_unlock(void)
+void ui_lvgl_unlock(void)
 {
-    assert(lvgl_mux && "bsp_display_start must be called first");
-    xSemaphoreGive(lvgl_mux);
+    assert(ui_sem && "bsp_display_start must be called first");
+    xSemaphoreGive(ui_sem);
 }
 
 static void example_lvgl_port_task(void* arg)
@@ -344,11 +341,11 @@ static void example_lvgl_port_task(void* arg)
     while (1)
     {
         // Lock the mutex due to the LVGL APIs are not thread-safe
-        if (example_lvgl_lock(-1))
+        if (ui_lvgl_lock(-1))
         {
             task_delay_ms = lv_timer_handler();
             // Release the mutex
-            example_lvgl_unlock();
+            ui_lvgl_unlock();
         }
         if (task_delay_ms > EXAMPLE_LVGL_TASK_MAX_DELAY_MS)
         {
@@ -472,8 +469,8 @@ void display_init(void)
     lv_indev_drv_register(&indev_drv);
 #endif
 
-    lvgl_mux = xSemaphoreCreateMutex();
-    assert(lvgl_mux);
+    ui_sem = xSemaphoreCreateMutex();
+    assert(ui_sem);
     xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL,
                 EXAMPLE_LVGL_TASK_PRIORITY, NULL);
 #ifdef Backlight_Testing
