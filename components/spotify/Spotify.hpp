@@ -15,6 +15,8 @@
 #include <SpotifyClient.hpp>
 #include <vector>
 #include <SpotifyQueueItem.hpp>
+#include <SpotifyPlaylist.hpp>
+#include <SpotifyPlaylistItem.hpp>
 
 using json = nlohmann::json;
 
@@ -121,6 +123,16 @@ public:
     };
 
     /**
+     * @struct UserInfo
+     * @brief Contains information about the Spotify user
+     */
+    struct UserInfo
+    {
+        std::string display_name; ///< User's display name
+        std::string user_id;      ///< User's Spotify ID
+    };
+
+    /**
      * @brief Get the singleton instance of the Spotify class
      * @return Reference to the singleton Spotify instance
      */
@@ -201,10 +213,10 @@ public:
 
     /**
      * @brief Add a track to the playback queue
-     * @param track Track information to add to queue
+     * @param uri Track URI to add to queue
      * @return true if successful, false otherwise
      */
-    bool addToQueue(const TrackInfo& track);
+    bool addToQueue(std::string uri);
 
     /**
      * @brief Request recently played tracks
@@ -212,13 +224,30 @@ public:
      * @param limit Maximum number of tracks to retrieve
      * @return true if successful, false otherwise
      */
-    bool reqeustRecentlyPlayed(size_t index, size_t limit);
+    bool requestRecentlyPlayed(size_t index = 0, size_t limit = 100);
 
     /**
      * @brief Request the current playback queue
      * @return true if successful, false otherwise
      */
     bool requestQueue();
+
+    /**
+     * @brief Request user playlists
+     * @param offset Offset for pagination
+     * @param limit Maximum number of playlists to retrieve
+     * @return true if successful, false otherwise
+     */
+    bool requestPlaylists(size_t offset = 0, size_t limit = 20);
+
+    /**
+     * @brief Request a specific playlist by ID
+     * @param playlist_id Spotify ID of the playlist to retrieve
+     * @param offset Offset for pagination
+     * @param limit Maximum number of tracks to retrieve
+     * @return true if successful, false otherwise
+     */
+    bool requestPlaylist(std::string playlist_id, size_t offset = 0, size_t limit = 100);
 
     /**
      * @brief Update the currently playing track information
@@ -240,6 +269,12 @@ public:
     {
         return m_spotifyClient.refreshToken();
     }
+
+    /**
+     * @brief Request user information
+     * @return true if successful, false otherwise
+     */
+    bool requestUserInfo();
 
     /**
      * @brief Print current status information to console
@@ -290,6 +325,7 @@ public:
 
 private:
     const char*    TAG = "Spotify"; ///< Log tag for ESP-IDF logging
+    UserInfo       m_userInfo;
     SpotifyClient& m_spotifyClient =
         SpotifyClient::getInstance();              ///< Reference to the underlying Spotify client
     PlaybackState          m_playbackState;        ///< Current playback state information
@@ -297,7 +333,14 @@ private:
     std::vector<TrackInfo> m_queue;                ///< Current playback queue
     std::vector<TrackInfo> m_recentlyPlayed;       ///< Recently played tracks
     bool                   m_verbose = false;      ///< Whether to log detailed information
-    std::vector<std::unique_ptr<SpotifyQueueItem>> m_songQueue;
+    std::vector<std::unique_ptr<SpotifyQueueItem>>    m_songQueue;
+    std::vector<std::unique_ptr<SpotifyPlaylist>>     m_playlists;
+    std::string                                       m_activePlaylistId;
+    std::vector<std::unique_ptr<SpotifyPlaylistItem>> m_playlistItems;
+
+    friend class SpotifyPlaylist;
+    friend class SpotifyPlaylistItem;
+    friend class SpotifyQueueItem;
 
     /**
      * @brief Get current system timestamp in milliseconds
@@ -346,6 +389,10 @@ private:
         UpdateCurrentlyPlaying, ///< Refresh currently playing track information
         UpdatePlaybackState,    ///< Refresh playback state information
         GetQueue,               ///< Get current playback queue
+        GetPlaylists,           ///< Get user's playlists
+        GetPlaylist,            ///< Get a specific playlist
+        GetUserInfo,            ///< Get user information
+        AddToQueue              ///< Add a track to the playback queue
     };
 
     /**

@@ -49,6 +49,7 @@ static void  ui_update_task(void* arg)
 
     while (1)
     {
+        ui_lvgl_lock(-1);
         if (sp.isPlaying())
         {
             // set play button state to checked to display pause icon
@@ -124,6 +125,7 @@ static void  ui_update_task(void* arg)
             prev_wifi_connected = false;
         }
 
+        ui_lvgl_unlock();
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 }
@@ -224,28 +226,41 @@ extern "C" void app_main(void)
 
     display_init();
     ui_init();
+
+    // remove dummy list items created by ui generator
+    ui_lvgl_lock(-1);
+    lv_obj_del(ui_Queue_Item_Panel);
+    lv_obj_remove_event_cb(ui_Playlist_Panel, ui_event_Playlist_Panel);
+    lv_obj_del(ui_Playlist_Panel);
+    lv_obj_del(ui_Playlist_Item_Panel);
+    ui_lvgl_unlock();
+
+    // add event callbacks
     lv_obj_add_event_cb(ui_Play_Button, ui_play_pause_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Skip_Forward_Btn, ui_next_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Skip_Back_Btn, ui_previous_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Shuffle_Btn, ui_shuffle_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_PRESSED, NULL);
     lv_obj_add_event_cb(ui_Now_Playing_Arc, ui_arc_cb, LV_EVENT_RELEASED, NULL);
+
+    // initialize user encoder
     user_encoder_init();
     xTaskCreate(ui_update_task, "ui_update_task", 8 * 1024, NULL, 5, NULL);
+    xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
 
     params::ParamMgr::getInstance().listAll();
-
-    xTaskCreate(user_encoder_loop_task, "user_encoder_loop_task", 8 * 1024, NULL, 2, NULL);
 
     // wait for wifi to connect
     while (!is_wifi_connected())
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 
+    // start spotify
     sp.start_task();
     sp.updateCurrentlyPlaying();
     sp.updatePlaybackState();
     sp.requestQueue();
+    sp.requestPlaylists();
 
     while (1)
         vTaskSuspend(NULL);

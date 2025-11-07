@@ -7,8 +7,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-bool example_lvgl_lock(int timeout_ms);
-void example_lvgl_unlock(void);
+bool ui_lvgl_lock(int timeout_ms);
+void ui_lvgl_unlock(void);
 void display_init(void);
 
 #endif

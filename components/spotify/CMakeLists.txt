@@ -4,6 +4,8 @@ idf_component_register(
         "SpotifyClient.cpp"
         "Spotify.cpp"
         "SpotifyQueueItem.cpp"
+        "SpotifyPlaylist.cpp"
+        "SpotifyPlaylistItem.cpp"
     INCLUDE_DIRS
         "."
     REQUIRES

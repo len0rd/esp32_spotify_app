@@ -320,7 +320,7 @@ static void example_increase_lvgl_tick(void* arg)
 
 static SemaphoreHandle_t ui_sem = NULL;
 
-bool example_lvgl_lock(int timeout_ms)
+bool ui_lvgl_lock(int timeout_ms)
 {
     assert(ui_sem && "bsp_display_start must be called first");
 
@@ -328,7 +328,7 @@ bool example_lvgl_lock(int timeout_ms)
     return xSemaphoreTake(ui_sem, timeout_ticks) == pdTRUE;
 }
 
-void example_lvgl_unlock(void)
+void ui_lvgl_unlock(void)
 {
     assert(ui_sem && "bsp_display_start must be called first");
     xSemaphoreGive(ui_sem);
@@ -341,11 +341,11 @@ static void example_lvgl_port_task(void* arg)
     while (1)
     {
         // Lock the mutex due to the LVGL APIs are not thread-safe
-        if (example_lvgl_lock(-1))
+        if (ui_lvgl_lock(-1))
         {
             task_delay_ms = lv_timer_handler();
             // Release the mutex
-            example_lvgl_unlock();
+            ui_lvgl_unlock();
         }
         if (task_delay_ms > EXAMPLE_LVGL_TASK_MAX_DELAY_MS)
         {

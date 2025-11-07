@@ -49,9 +49,7 @@ SpotifyQueueItem::SpotifyQueueItem(const std::string& song, const std::string& a
                                    const std::string& uri)
     : song_name(song), artist_name(artist), song_uri(uri)
 {
-    // assert(ui_sem && "bsp_display_start must be called first");
-    // xSemaphoreTake(ui_sem, portMAX_DELAY);
-    example_lvgl_lock(-1);
+    ui_lvgl_lock(-1);
 
     queue_item_pannel = lv_obj_create(ui_Queue_Container);
     lv_obj_set_width(queue_item_pannel, 360);
@@ -74,7 +72,6 @@ SpotifyQueueItem::SpotifyQueueItem(const std::string& song, const std::string& a
     lv_obj_set_style_bg_color(queue_item_pannel, lv_color_hex(0xFFFFFF),
                               LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(queue_item_pannel, 150, LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_add_event_cb(queue_item_pannel, song_queue_clicked_cb, LV_EVENT_CLICKED, this);
 
     labels_container = lv_obj_create(queue_item_pannel);
     lv_obj_remove_style_all(labels_container);
@@ -117,7 +114,6 @@ SpotifyQueueItem::SpotifyQueueItem(const std::string& song, const std::string& a
         LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(move_up_btn, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(move_up_btn, 150, LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_add_event_cb(move_up_btn, song_queue_up_clicked_cb, LV_EVENT_CLICKED, this);
 
     move_down_btn = lv_btn_create(queue_item_pannel);
     lv_obj_set_width(move_down_btn, 30);
@@ -136,14 +132,15 @@ SpotifyQueueItem::SpotifyQueueItem(const std::string& song, const std::string& a
     lv_obj_set_style_bg_color(move_down_btn, lv_color_hex(0xFFFFFF),
                               LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(move_down_btn, 150, LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_add_event_cb(move_up_btn, song_queue_down_clicked_cb, LV_EVENT_CLICKED, this);
 
-    // xSemaphoreGive(ui_sem);
-    example_lvgl_unlock();
+    lv_obj_add_event_cb(queue_item_pannel, song_queue_clicked_cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(move_up_btn, song_queue_up_clicked_cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(move_down_btn, song_queue_down_clicked_cb, LV_EVENT_CLICKED, this);
+    ui_lvgl_unlock();
 }
 SpotifyQueueItem::~SpotifyQueueItem()
 {
-    example_lvgl_lock(-1);
+    ui_lvgl_lock(-1);
 
     // Remove all event callbacks first
     lv_obj_remove_event_cb(queue_item_pannel, song_queue_clicked_cb);
@@ -153,15 +150,19 @@ SpotifyQueueItem::~SpotifyQueueItem()
     song_name.clear();
     artist_name.clear();
 
-    example_lvgl_unlock();
+    ui_lvgl_unlock();
 }
 void SpotifyQueueItem::setSongName(const std::string& name)
 {
+    ui_lvgl_lock(-1);
     song_name = name;
     lv_label_set_text(song_label, song_name.c_str());
+    ui_lvgl_unlock();
 }
 void SpotifyQueueItem::setArtistName(const std::string& name)
 {
+    ui_lvgl_lock(-1);
     artist_name = name;
     lv_label_set_text(artist_label, artist_name.c_str());
+    ui_lvgl_unlock();
 }
