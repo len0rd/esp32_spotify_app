@@ -8,6 +8,41 @@
 
 void spotify_cmd_init();
 
+void Spotify::playlist_play_cb(lv_event_t* e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if (event_code == LV_EVENT_CLICKED)
+    {
+        Spotify::getInstance().play("0", Spotify::getInstance().m_activePlaylistId);
+        if (Spotify::getInstance().getPlaybackState().shuffle_state)
+            Spotify::getInstance().toggleShuffle();
+    }
+}
+void Spotify::playlist_queue_cb(lv_event_t* e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if (event_code == LV_EVENT_CLICKED)
+    {
+        for (const auto& item : Spotify::getInstance().m_playlistItems)
+        {
+            Spotify::getInstance().addToQueue(item->song_uri);
+        }
+    }
+}
+void Spotify::playlist_shuffle_cb(lv_event_t* e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if (event_code == LV_EVENT_CLICKED)
+    {
+        Spotify::getInstance().play("", Spotify::getInstance().m_activePlaylistId);
+        if (!Spotify::getInstance().getPlaybackState().shuffle_state)
+            Spotify::getInstance().toggleShuffle();
+    }
+}
+
 Spotify::Spotify()
 {
     setLogLevel(ESP_LOG_WARN);
@@ -27,10 +62,13 @@ void Spotify::start_task()
 }
 void Spotify::task()
 {
-    m_playlists.push_back(
-        std::make_unique<SpotifyPlaylist>("Liked Songs", "spotify:collection:liked"));
-    m_playlists.push_back(
-        std::make_unique<SpotifyPlaylist>("Recently Played", "spotify:collection:recently_played"));
+    m_playlists.push_back(std::make_unique<SpotifyPlaylist>(
+        "Liked Songs", "spotify:collection:liked", "spotify:collection:liked"));
+    m_playlists.push_back(std::make_unique<SpotifyPlaylist>(
+        "Recently Played", "spotify:collection:recently_played", ""));
+    lv_obj_add_event_cb(ui_Play_Playlist_Btn, playlist_play_cb, LV_EVENT_ALL, this);
+    lv_obj_add_event_cb(ui_Queue_Playlist_Btn, playlist_queue_cb, LV_EVENT_ALL, this);
+    lv_obj_add_event_cb(ui_Shuffle_Playlist_Btn, playlist_shuffle_cb, LV_EVENT_ALL, this);
     SpotifyAction* action;
     while (true)
     {
@@ -50,16 +88,32 @@ void Spotify::task()
             {
                 case SpotifyActionType::Play:
                 {
-                    json body = {{"context_uri", action->context_uri.empty()
-                                                     ? m_currentlyPlayingInfo.context_uri
-                                                     : action->context_uri},
-                                 {"offset",
-                                  {{"uri", action->song_uri.empty()
-                                               ? m_currentlyPlayingInfo.currentTrack.track_uri
-                                               : action->song_uri}}},
-                                 {"position_ms", action->song_uri.empty()
-                                                     ? m_currentlyPlayingInfo.progress_ms
-                                                     : 0}};
+                    if (action->context_uri == "spotify:collection:liked")
+                    {
+                        action->context_uri = "spotify:user:" + m_userInfo.user_id + ":collection";
+                    }
+
+                    json body;
+                    if (action->song_uri == "0")
+                    {
+                        body = {{"context_uri", action->context_uri},
+                                {"offset", {{"position", 0}}},
+                                {"position_ms", 0}};
+                    }
+                    else
+                    {
+                        body = {{"context_uri", action->context_uri.empty()
+                                                    ? m_currentlyPlayingInfo.context_uri
+                                                    : action->context_uri},
+                                {"offset",
+                                 {{"uri", action->song_uri.empty()
+                                              ? m_currentlyPlayingInfo.currentTrack.track_uri
+                                              : action->song_uri}}},
+                                {"position_ms", action->song_uri.empty()
+                                                    ? m_currentlyPlayingInfo.progress_ms
+                                                    : 0}};
+                    }
+                    printf("Play body: %s\n", body.dump().c_str());
                     auto resp = m_spotifyClient.put("me/player/play", body.dump(), true);
                     if (resp && resp->contains("error") == false)
                     {
@@ -400,10 +454,11 @@ void Spotify::task()
                                 {
                                     std::string name = item["name"].get<std::string>();
                                     std::string id   = item["id"].get<std::string>();
+                                    std::string uri  = item["uri"].get<std::string>();
                                     ESP_LOGI(TAG, "Found playlist: %s (ID: %s)", name.c_str(),
                                              id.c_str());
                                     m_playlists.push_back(
-                                        std::make_unique<SpotifyPlaylist>(name, id));
+                                        std::make_unique<SpotifyPlaylist>(name, id, uri));
                                 }
                             }
                         }
@@ -459,7 +514,7 @@ void Spotify::task()
                                                  uri.c_str());
                                         m_playlistItems.push_back(
                                             std::make_unique<SpotifyPlaylistItem>(
-                                                song_name, artist_name, uri));
+                                                song_name, artist_name, uri, m_activePlaylistId));
                                     }
                                 }
                             }

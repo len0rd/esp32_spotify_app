@@ -21,7 +21,7 @@ void SpotifyPlaylistItem::song_clicked_cb(lv_event_t* e)
     lv_event_code_t      code = lv_event_get_code(e);
     if (data && code == LV_EVENT_CLICKED)
     {
-        Spotify::getInstance().play(data->song_uri);
+        Spotify::getInstance().play(data->song_uri, data->parent_playlist_uri);
         Spotify::getInstance().requestQueue();
     }
 }
@@ -37,12 +37,12 @@ void SpotifyPlaylistItem::song_queue_add_clicked_cb(lv_event_t* e)
 }
 
 SpotifyPlaylistItem::SpotifyPlaylistItem()
-    : SpotifyPlaylistItem("Song Name", "Artist Name", "Song URI")
+    : SpotifyPlaylistItem("Song Name", "Artist Name", "Song URI", "Playlist URI")
 {
 }
 SpotifyPlaylistItem::SpotifyPlaylistItem(const std::string& song, const std::string& artist,
-                                         const std::string& uri)
-    : song_name(song), artist_name(artist), song_uri(uri)
+                                         const std::string& uri, const std::string& playlist_uri)
+    : song_name(song), artist_name(artist), song_uri(uri), parent_playlist_uri(playlist_uri)
 {
     ui_lvgl_lock(-1);
 

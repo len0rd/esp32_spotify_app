@@ -331,6 +331,10 @@ public:
         m_verbose = verbose;
     }
 
+    static void playlist_play_cb(lv_event_t* e);
+    static void playlist_queue_cb(lv_event_t* e);
+    static void playlist_shuffle_cb(lv_event_t* e);
+
 private:
     const char*    TAG = "Spotify"; ///< Log tag for ESP-IDF logging
     UserInfo       m_userInfo;

@@ -23,7 +23,8 @@ void SpotifyPlaylist::playlist_clicked_cb(lv_event_t* e)
         lv_obj_scroll_to_y(ui_Songs_Container, 0, LV_ANIM_OFF);
         lv_obj_scroll_by(ui_Songs_Container, 0, -100, LV_ANIM_ON);
 
-        Spotify::getInstance().requestPlaylist(playlist->playlist_uri);
+        Spotify::getInstance().m_activePlaylistId = playlist->playlist_uri;
+        Spotify::getInstance().requestPlaylist(playlist->playlist_id);
 
         // clear old playlist items
         Spotify::getInstance().m_playlistItems.clear();
@@ -33,9 +34,12 @@ void SpotifyPlaylist::playlist_clicked_cb(lv_event_t* e)
                           &ui_PlayList_Screen_screen_init);
     }
 }
-SpotifyPlaylist::SpotifyPlaylist() : SpotifyPlaylist{"", ""} {}
-SpotifyPlaylist::SpotifyPlaylist(const std::string& name, const std::string& uri)
-    : playlist_name{name}, playlist_uri{uri}
+SpotifyPlaylist::SpotifyPlaylist() : SpotifyPlaylist{"Playlist Name", "Playlist ID", "Playlist URI"}
+{
+}
+SpotifyPlaylist::SpotifyPlaylist(const std::string& name, const std::string& id,
+                                 const std::string& uri)
+    : playlist_name{name}, playlist_id{id}, playlist_uri{uri}
 {
     ui_lvgl_lock(-1);
 

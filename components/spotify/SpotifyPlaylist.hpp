@@ -21,12 +21,21 @@ class SpotifyPlaylist
 public:
     static void playlist_clicked_cb(lv_event_t* e);
     SpotifyPlaylist();
-    SpotifyPlaylist(const std::string& name, const std::string& uri);
+    SpotifyPlaylist(const std::string& name, const std::string& id, const std::string& uri);
     ~SpotifyPlaylist();
     void setPlaylistName(const std::string& name);
+    void setPlaylistId(const std::string& id)
+    {
+        playlist_id = id;
+    }
+    void setPlaylistUri(const std::string& uri)
+    {
+        playlist_uri = uri;
+    }
 
     // private:
     std::string playlist_name;
+    std::string playlist_id;
     std::string playlist_uri;
     lv_obj_t*   playlist_pannel;
     lv_obj_t*   playlist_label;

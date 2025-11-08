@@ -21,6 +21,8 @@ void SpotifyQueueItem::song_queue_clicked_cb(lv_event_t* e)
     lv_event_code_t   code = lv_event_get_code(e);
     if (data && code == LV_EVENT_CLICKED)
     {
+        printf("Clicked SONG BTN for song in the queue: %s by %s\n", data->song_name.c_str(),
+               data->artist_name.c_str());
         Spotify::getInstance().play(data->song_uri);
         Spotify::getInstance().requestQueue();
     }

@@ -23,7 +23,8 @@ public:
     static void song_clicked_cb(lv_event_t* e);
     static void song_queue_add_clicked_cb(lv_event_t* e);
     SpotifyPlaylistItem();
-    SpotifyPlaylistItem(const std::string& song, const std::string& artist, const std::string& uri);
+    SpotifyPlaylistItem(const std::string& song, const std::string& artist, const std::string& uri,
+                        const std::string& playlist_uri);
     ~SpotifyPlaylistItem();
     void setSongName(const std::string& name);
     void setArtistName(const std::string& name);
@@ -32,6 +33,7 @@ public:
     std::string song_name;
     std::string artist_name;
     std::string song_uri;
+    std::string parent_playlist_uri;
     lv_obj_t*   playlist_item_pannel;
     lv_obj_t*   labels_container;
     lv_obj_t*   song_label;
