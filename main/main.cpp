@@ -37,7 +37,8 @@ std::string ms_to_min_sec(int ms)
     int total_seconds = ms / 1000;
     int minutes       = total_seconds / 60;
     int seconds       = total_seconds % 60;
-    return std::to_string(minutes) + ":" + std::to_string(seconds) + (seconds < 10 ? "0" : "");
+    return std::to_string(minutes) + ":" + (seconds < 10 || seconds == 0 ? "0" : "") +
+           std::to_string(seconds);
 }
 
 const size_t ARC_MAX_VAL       = 1000;
